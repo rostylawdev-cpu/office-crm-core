@@ -1,0 +1,13 @@
+# clasp local binding (привязка к конкретному Apps Script проекту)
+.clasp.json
+.clasp.local.json
+
+# node (если появится)
+node_modules/
+
+# системные
+.DS_Store
+Thumbs.db
+
+# VS Code (по желанию)
+.vscode/
