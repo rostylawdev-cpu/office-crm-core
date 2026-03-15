@@ -219,3 +219,9 @@ function tryTouchClientLastActivity_(clientId, nowIso) {
     }
   }
 }
+
+function addDaysIso_(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + Number(days || 0));
+  return d.toISOString();
+}

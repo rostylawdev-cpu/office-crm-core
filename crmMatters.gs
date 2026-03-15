@@ -61,21 +61,6 @@ function crm_findMattersByClientId(clientId) {
 
 /** ===== helpers (local) ===== */
 
-function makeId_(prefix) {
-  // MAT_YYYYMMDD_xxxxxx
-  const d = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd");
-  const rnd = Utilities.getUuid().slice(0, 6).toUpperCase();
-  return `${prefix}_${d}_${rnd}`;
-}
-
-function appendRowByHeaders_(sheet, headers, obj) {
-  // headers must be on row 1 already
-  const values = headers.map(h => (obj[h] !== undefined ? obj[h] : ""));
-  const row = sheet.getLastRow() + 1;
-  sheet.getRange(row, 1, 1, values.length).setValues([values]);
-  return row;
-}
-
 function findRowsByColumnValue_(sheet, headers, colName, value) {
   const colIdx = headers.indexOf(colName);
   if (colIdx === -1) throw new Error(`findRowsByColumnValue_: header not found: ${colName}`);
@@ -95,62 +80,7 @@ function findRowsByColumnValue_(sheet, headers, colName, value) {
   return res;
 }
 
-function rowToObj_(headers, rowVals, rowNumber) {
-  const o = { __row: rowNumber };
-  headers.forEach((h, i) => (o[h] = rowVals[i]));
-  return o;
-}
-
-function logActivity_(p) {
-  // p: {action, message, clientId?, matterId?, meta?}
-  const ss = crm_getSpreadsheet_();
-  const c = cfg_();
-  const sh = ss.getSheetByName(c.SHEETS.ACTIVITIES);
-  if (!sh) throw new Error("logActivity_: ACTIVITIES sheet not found");
-
-  const actor = Session.getActiveUser().getEmail() || "unknown";
-  const now = nowIso_();
-
-  const rowObj = {
-    ACTIVITY_ID: makeId_("ACT"),
-    TS: now,
-    ACTOR: actor,
-    CLIENT_ID: p.clientId || "",
-    MATTER_ID: p.matterId || "",
-    ACTION: p.action || "",
-    MESSAGE: p.message || "",
-    META_JSON: json_(p.meta || {}),
-  };
-
-  appendRowByHeaders_(sh, c.HEADERS.ACTIVITIES, rowObj);
-}
-
-function tryTouchClientLastActivity_(clientId, nowIso) {
-  const ss = crm_getSpreadsheet_();
-  const c = cfg_();
-  const sh = ss.getSheetByName(c.SHEETS.CLIENTS);
-  if (!sh) return;
-
-  const headers = c.HEADERS.CLIENTS;
-  const idxClientId = headers.indexOf("CLIENT_ID");
-  const idxLast = headers.indexOf("LAST_ACTIVITY_AT");
-  const idxUpdated = headers.indexOf("UPDATED_AT");
-  if (idxClientId === -1 || idxLast === -1) return;
-
-  const lastRow = sh.getLastRow();
-  if (lastRow < 2) return;
-
-  const data = sh.getRange(2, 1, lastRow - 1, headers.length).getValues();
-  for (let i = 0; i < data.length; i++) {
-    if (String(data[i][idxClientId]) === String(clientId)) {
-      const rowNumber = i + 2;
-      sh.getRange(rowNumber, idxLast + 1).setValue(nowIso);
-      if (idxUpdated !== -1) sh.getRange(rowNumber, idxUpdated + 1).setValue(nowIso);
-      return;
-    }
-  }
-}
-
+//test function
 function test_createMatter() {
   // возьми существующий clientId из Clients
   const clientId = "CL_20260304_204602_6MLHYU"; // <-- подставь свой реальный
@@ -166,4 +96,81 @@ function test_createMatter() {
 
   const list = crm_findMattersByClientId(clientId);
   Logger.log(list);
+}
+
+function crm_createMatterWithTasks(input) {
+  // input: { clientId, category, title, authority, stage?, taskTemplateKey?, owner? }
+
+  if (!input || !input.clientId) throw new Error("crm_createMatterWithTasks: missing clientId");
+  if (!input.title) throw new Error("crm_createMatterWithTasks: missing title");
+  if (!input.category) throw new Error("crm_createMatterWithTasks: missing category");
+
+  // 1) create matter
+  const matterRes = crm_createMatter({
+    clientId: input.clientId,
+    category: input.category,
+    title: input.title,
+    authority: input.authority || "",
+    stage: input.stage || "NEW",
+    owner: input.owner || ""
+  });
+
+  const matterId = matterRes.matterId;
+
+  // 2) generate tasks from template
+  const c = cfg_();
+  const key =
+    input.taskTemplateKey ||
+    (input.category === "WORK_ACCIDENT" ? "WORK_ACCIDENT" : "LABOR_DISPUTE");
+
+  const tpl = (c.TASK_TEMPLATES && c.TASK_TEMPLATES[key]) ? c.TASK_TEMPLATES[key] : [];
+
+  const createdTasks = [];
+  tpl.forEach(t => {
+    const dueDateIso = addDaysIso_(t.days || 0);
+    const res = crm_createTask({
+      clientId: input.clientId,
+      matterId: matterId,
+      type: t.type || "GENERAL",
+      title: t.title,
+      dueDate: dueDateIso,
+      status: "OPEN",
+      priority: t.priority || "MEDIUM",
+      assignee: Session.getActiveUser().getEmail() || "unknown",
+      generatedBy: "TEMPLATE",
+      notes: ""
+    });
+    createdTasks.push(res);
+  });
+
+  // 3) activity log (one summary record)
+  crm_logActivity_(crm_getSpreadsheet_(), {
+    clientId: input.clientId,
+    matterId: matterId,
+    action: "MATTER_WORKFLOW_CREATED",
+    message: `Matter workflow created: ${key}`,
+    meta: { templateKey: key, tasks: tpl.length }
+  });
+
+  return {
+    ok: true,
+    matterId,
+    tasksCreated: tpl.length,
+    taskResults: createdTasks
+  };
+}
+
+//test function
+function test_createMatterWithTasks() {
+  const clientId = "CL_20260304_204602_6MLHYU";
+
+  const res = crm_createMatterWithTasks({
+    clientId,
+    category: "WORK_ACCIDENT",
+    title: "Teunat Avoda – workflow test",
+    authority: "Bituach Leumi",
+    taskTemplateKey: "WORK_ACCIDENT"
+  });
+
+  Logger.log(JSON.stringify(res, null, 2));
 }

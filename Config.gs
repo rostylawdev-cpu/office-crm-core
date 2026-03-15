@@ -34,6 +34,21 @@ const CFG = {
       "GENERATED_BY", "ASSIGNEE", "CREATED_AT", "DONE_AT", "NOTES",
     ],
   },
+  TASK_TEMPLATES: {
+  WORK_ACCIDENT: [
+    { type: "DOC_REQUEST", title: "Запросить טופס 250 + תלושים + דו\"חות נוכחות", days: 0, priority: "HIGH" },
+    { type: "DOC_REQUEST", title: "Запросить медицинские документы + סיכום ביקור", days: 0, priority: "HIGH" },
+    { type: "FORM_PREP",   title: "Подготовить/проверить טופס בל/211", days: 1, priority: "HIGH" },
+    { type: "FOLLOW_UP",   title: "Созвон с клиентом: уточнить обстоятельства התאונה", days: 1, priority: "MEDIUM" },
+    { type: "SUBMIT",      title: "Подача в БЛ + контроль подтверждения", days: 2, priority: "HIGH" }
+  ],
+
+  LABOR_DISPUTE: [
+    { type: "DOC_REQUEST", title: "Запросить תלושים/דוחות נוכחות/חוזה עבודה", days: 0, priority: "HIGH" },
+    { type: "CALC",        title: "Сделать первичный расчет (שכר/פנסיה/פיצויים)", days: 1, priority: "HIGH" },
+    { type: "LETTER",      title: "Подготовить מכתב התראה", days: 2, priority: "MEDIUM" }
+  ]
+}
 };
 
 function cfg_() { return CFG; }

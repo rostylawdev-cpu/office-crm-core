@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 12px; }
+    .box { border: 1px solid #ddd; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+    .muted { color: #666; font-size: 12px; }
+    .title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 4px 0; vertical-align: top; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#f2f2f2; font-size:12px; margin-left:6px; }
+    .task { padding: 6px 0; border-top: 1px dashed #e5e5e5; }
+    .task:first-child { border-top: 0; }
+    .btn { padding: 6px 10px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; }
+    .btn:hover { background: #f7f7f7; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+
+<? var card = this.card; ?>
+
+<div class="box">
+  <div class="title">
+    <?= card.matter.TITLE ?>
+    <span class="pill"><?= card.matter.CATEGORY ?></span>
+    <span class="pill"><?= card.matter.STAGE ?></span>
+  </div>
+  <div class="muted">
+    Matter ID: <?= card.matter.MATTER_ID ?> · Authority: <?= card.matter.AUTHORITY || "-" ?>
+  </div>
+  <div class="muted">
+    Opened: <?= card.matter.OPENED_AT || "-" ?> · Updated: <?= card.matter.UPDATED_AT || "-" ?>
+  </div>
+</div>
+
+<div class="box">
+  <div class="title">Клиент</div>
+  <? if (card.client) { ?>
+    <table>
+      <tr><td><b>Имя</b></td><td><?= card.client.FULL_NAME || "-" ?></td></tr>
+      <tr><td><b>Телефон</b></td><td><?= card.client.PHONE || "-" ?></td></tr>
+      <tr><td><b>Email</b></td><td><?= card.client.EMAIL || "-" ?></td></tr>
+      <tr><td><b>Статус</b></td><td><?= card.client.STATUS || "-" ?></td></tr>
+      <tr><td><b>Owner</b></td><td><?= card.client.OWNER || "-" ?></td></tr>
+    </table>
+  <? } else { ?>
+    <div class="muted">Client not found (CLIENT_ID = <?= card.matter.CLIENT_ID ?>)</div>
+  <? } ?>
+</div>
+
+<div class="box">
+  <div class="row" style="justify-content:space-between">
+    <div class="title" style="margin:0">Открытые задачи (<?= card.tasks.length ?>)</div>
+    <button class="btn" onclick="refresh()">Обновить</button>
+  </div>
+
+  <? if (card.tasks.length === 0) { ?>
+    <div class="muted">Нет открытых задач 🎉</div>
+  <? } else { ?>
+    <? card.tasks.forEach(function(t){ ?>
+      <div class="task">
+        <div><b><?= t.TITLE ?></b> <span class="pill"><?= t.TYPE ?></span> <span class="pill"><?= t.PRIORITY ?></span></div>
+        <div class="muted">Due: <?= t.DUE_DATE || "-" ?> · Assignee: <?= t.ASSIGNEE || "-" ?></div>
+        <div style="margin-top:6px">
+          <button class="btn" onclick="markDone('<?= t.TASK_ID ?>')">✅ Done</button>
+        </div>
+      </div>
+    <? }) ?>
+  <? } ?>
+</div>
+
+<div class="box">
+  <div class="title">Последние активности (<?= card.activities.length ?>)</div>
+  <? if (card.activities.length === 0) { ?>
+    <div class="muted">Пока пусто</div>
+  <? } else { ?>
+    <? card.activities.forEach(function(a){ ?>
+      <div class="task">
+        <div><b><?= a.ACTION ?></b> — <?= a.MESSAGE || "" ?></div>
+        <div class="muted"><?= a.TS ?> · <?= a.ACTOR ?></div>
+      </div>
+    <? }) ?>
+  <? } ?>
+</div>
+
+<script>
+  const matterId = "<?= card.matter.MATTER_ID ?>";
+
+  function refresh() {
+    google.script.run
+      .withSuccessHandler(function(html){
+        document.open(); document.write(html); document.close();
+      })
+      .crm_getMatterCardHtml_(matterId);
+  }
+
+  function markDone(taskId) {
+    google.script.run
+      .withSuccessHandler(refresh)
+      .crm_markDone({ taskId: taskId, note: "Closed from Matter Card" });
+  }
+</script>
+
+</body>
+</html>
+
+function crm_getMatterCardHtml_(matterId) {
+  // возвращаем HTML строкой для refresh()
+  const out = crm_renderMatterCardHtml(matterId);
+  return out.getContent();
+}
+
+function escapeHtml_(s) {
+  s = String(s ?? "");
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("CRM")
+    .addItem("Open Matter Card (by active row)", "crm_openMatterCardFromActiveRow")
+    .addToUi();
+}
+
+function crm_openMatterCardFromActiveRow() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getActiveSheet();
+  const row = sh.getActiveRange().getRow();
+  const matterId = sh.getRange(row, 1).getValue(); // предполагаем MATTER_ID в колонке A
+  if (!matterId) throw new Error("No MATTER_ID in column A of active row");
+
+  const html = crm_renderMatterCardHtml(matterId);
+  SpreadsheetApp.getUi().showSidebar(html);
+}

@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: Arial, sans-serif; padding: 12px; }
+      .h { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+      .sub { color:#555; margin-bottom: 12px; }
+      .box { border:1px solid #ddd; border-radius:10px; padding:10px; margin:10px 0; }
+      .row { display:flex; justify-content:space-between; gap:10px; margin:4px 0; }
+      .k { color:#666; min-width: 90px; }
+      .v { font-weight:600; word-break: break-word; }
+      .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#f1f3f4; font-size:12px; }
+      .list { margin: 6px 0 0; padding-left: 16px; }
+      .muted { color:#777; font-size: 12px; }
+      button { cursor:pointer; border:0; border-radius:10px; padding:8px 10px; }
+      .btn { background:#1a73e8; color:#fff; }
+      .btn2 { background:#f1f3f4; }
+      .actions { display:flex; gap:8px; margin-top:10px; }
+      hr { border:0; border-top:1px solid #eee; margin: 10px 0; }
+      pre { background:#f7f7f7; padding:8px; border-radius:10px; overflow:auto; }
+    </style>
+  </head>
+  <body>
+    <? var ok = card && card.ok; ?>
+    <div class="h">Matter Card</div>
+    <div class="sub">
+      ID: <span class="pill"><?= matterId ?></span>
+      <? if (!ok) { ?>
+        <span class="pill">NOT FOUND</span>
+      <? } ?>
+    </div>
+
+    <? if (!ok) { ?>
+      <div class="box">
+        <b>Ошибка:</b> <?= card.error ?>
+      </div>
+    <? } else { ?>
+      <div class="box">
+        <div class="row"><div class="k">Title</div><div class="v"><?= card.matter.TITLE || "" ?></div></div>
+        <div class="row"><div class="k">Category</div><div class="v"><?= card.matter.CATEGORY || "" ?></div></div>
+        <div class="row"><div class="k">Stage</div><div class="v"><?= card.matter.STAGE || "" ?></div></div>
+        <div class="row"><div class="k">Authority</div><div class="v"><?= card.matter.AUTHORITY || "" ?></div></div>
+        <div class="row"><div class="k">Owner</div><div class="v"><?= card.matter.OWNER || "" ?></div></div>
+      </div>
+
+      <div class="box">
+        <div class="h" style="font-size:14px;margin:0 0 6px;">Client</div>
+        <div class="row"><div class="k">Name</div><div class="v"><?= card.client?.FULL_NAME || "" ?></div></div>
+        <div class="row"><div class="k">Phone</div><div class="v"><?= card.client?.PHONE || "" ?></div></div>
+        <div class="row"><div class="k">Email</div><div class="v"><?= card.client?.EMAIL || "" ?></div></div>
+      </div>
+
+      <div class="box">
+        <div class="h" style="font-size:14px;margin:0 0 6px;">Open tasks (<?= (card.tasks||[]).length ?>)</div>
+        <? if ((card.tasks||[]).length === 0) { ?>
+          <div class="muted">Нет открытых задач.</div>
+        <? } else { ?>
+          <ul class="list">
+            <? for (var i=0; i<card.tasks.length; i++) { var t = card.tasks[i]; ?>
+              <li>
+                <b><?= t.TITLE || "" ?></b>
+                <div class="muted">
+                  <?= t.TYPE || "" ?> · <?= t.PRIORITY || "" ?> · due: <?= t.DUE_DATE || "" ?>
+                </div>
+              </li>
+            <? } ?>
+          </ul>
+        <? } ?>
+      </div>
+
+      <div class="box">
+        <div class="h" style="font-size:14px;margin:0 0 6px;">Last activities (<?= (card.activities||[]).length ?>)</div>
+        <? if ((card.activities||[]).length === 0) { ?>
+          <div class="muted">Активностей пока нет.</div>
+        <? } else { ?>
+          <ul class="list">
+            <? for (var j=0; j<card.activities.length; j++) { var a = card.activities[j]; ?>
+              <li>
+                <b><?= a.ACTION || "" ?></b> — <?= a.MESSAGE || "" ?>
+                <div class="muted"><?= a.TS || "" ?> · <?= a.ACTOR || "" ?></div>
+              </li>
+            <? } ?>
+          </ul>
+        <? } ?>
+      </div>
+
+      <div class="actions">
+        <button class="btn" onclick="refresh()">Refresh</button>
+        <button class="btn2" onclick="showRaw()">Raw JSON</button>
+      </div>
+
+      <div id="raw" style="display:none;">
+        <hr/>
+        <pre><?= JSON.stringify(card, null, 2) ?></pre>
+      </div>
+    <? } ?>
+
+    <script>
+      function refresh() {
+        google.script.run
+          .withSuccessHandler(function(){ google.script.host.close(); })
+          .crm_openMatterCardById("<?= matterId ?>");
+      }
+      function showRaw() {
+        const el = document.getElementById('raw');
+        el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+      }
+    </script>
+  </body>
+</html>
