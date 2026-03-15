@@ -161,3 +161,14 @@ function addDaysIso_(days) {
   d.setDate(d.getDate() + Number(days || 0));
   return d.toISOString();
 }
+
+function escapeHtml_(s) {
+  s = String(s ?? "");
+  return s.replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  }[c]));
+}

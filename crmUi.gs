@@ -1,3 +1,5 @@
+/** crmUi.gs */
+
 function onOpen(e) {
   SpreadsheetApp.getUi()
     .createMenu("CRM")
@@ -12,18 +14,21 @@ function crm_renderMatterCardHtml(matterId) {
     limitActivities: 20,
   });
 
-  if (!card.ok) {
+  if (!card || !card.ok) {
     return HtmlService.createHtmlOutput(
       `<div style="font-family:Arial;padding:12px">
-         <b>Ошибка:</b> ${escapeHtml_(card.error || "UNKNOWN")}<br/>
-         matterId: ${escapeHtml_(matterId)}
+         <b>Ошибка:</b> ${escapeHtml_(card?.error || "UNKNOWN")}<br/>
+         matterId: ${escapeHtml_(matterId || "")}
        </div>`
-    );
+    ).setTitle("CRM Matter Card");
   }
 
-  const tpl = HtmlService.createTemplateFromFile("matterCard");
+  const tpl = HtmlService.createTemplateFromFile("crm_matter_card");
   tpl.card = card;
-  return tpl.evaluate()
+  tpl.matterId = matterId;
+
+  return tpl
+    .evaluate()
     .setTitle("CRM Matter Card")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
