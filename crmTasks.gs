@@ -12,9 +12,8 @@ function crm_createTask(input) {
   if (!sh) throw new Error("crm_createTask: TASKS sheet not found");
 
   const now = nowIso_();
-  const actor = Session.getActiveUser().getEmail() || "unknown";
-
-  const taskId = makeId_("TSK");
+  const actor = getActiveUserEmail_() || "unknown";
+  const taskId = generateId_("TSK");
 
   const rowObj = {
     TASK_ID: taskId,
@@ -22,9 +21,9 @@ function crm_createTask(input) {
     MATTER_ID: input.matterId || "",
     TYPE: input.type || "GENERAL",
     TITLE: input.title,
-    DUE_DATE: input.dueDate || "",           // можно ISO или пусто
-    STATUS: input.status || "OPEN",          // OPEN / DONE / CANCELED
-    PRIORITY: input.priority || "MEDIUM",    // LOW / MEDIUM / HIGH
+    DUE_DATE: input.dueDate || "",
+    STATUS: input.status || "OPEN",
+    PRIORITY: input.priority || "MEDIUM",
     GENERATED_BY: input.generatedBy || "MANUAL",
     ASSIGNEE: input.assignee || actor,
     CREATED_AT: now,
@@ -34,68 +33,22 @@ function crm_createTask(input) {
 
   const rowIndex = appendRowByHeaders_(sh, c.HEADERS.TASKS, rowObj);
 
-  logActivity_({
+  crm_logActivity({
     action: "TASK_CREATED",
     message: `Task created: ${taskId}`,
     clientId: input.clientId,
     matterId: input.matterId || "",
-    meta: { row: rowIndex, title: rowObj.TITLE, due: rowObj.DUE_DATE, priority: rowObj.PRIORITY }
+    meta: {
+      row: rowIndex,
+      title: rowObj.TITLE,
+      due: rowObj.DUE_DATE,
+      priority: rowObj.PRIORITY,
+    },
   });
 
   tryTouchClientLastActivity_(input.clientId, now);
 
   return { ok: true, taskId, row: rowIndex };
-}
-
-function crm_markTaskDone(taskId) {
-  const ss = crm_getSpreadsheet_();
-  const c = cfg_();
-
-  if (!taskId) throw new Error("crm_markTaskDone: missing taskId");
-
-  const sh = ss.getSheetByName(c.SHEETS.TASKS);
-  if (!sh) throw new Error("crm_markTaskDone: TASKS sheet not found");
-
-  const headers = c.HEADERS.TASKS;
-  const idxTaskId = headers.indexOf("TASK_ID");
-  const idxStatus = headers.indexOf("STATUS");
-  const idxDoneAt = headers.indexOf("DONE_AT");
-  const idxUpdatedAt = headers.indexOf("UPDATED_AT"); // может не быть, ок
-  const idxClientId = headers.indexOf("CLIENT_ID");
-  const idxMatterId = headers.indexOf("MATTER_ID");
-
-  const lastRow = sh.getLastRow();
-  if (lastRow < 2) return { ok: false, reason: "no rows" };
-
-  const data = sh.getRange(2, 1, lastRow - 1, headers.length).getValues();
-  const now = nowIso_();
-
-  for (let i = 0; i < data.length; i++) {
-    if (String(data[i][idxTaskId]) === String(taskId)) {
-      const rowNumber = i + 2;
-
-      if (idxStatus !== -1) sh.getRange(rowNumber, idxStatus + 1).setValue("DONE");
-      if (idxDoneAt !== -1) sh.getRange(rowNumber, idxDoneAt + 1).setValue(now);
-      if (idxUpdatedAt !== -1) sh.getRange(rowNumber, idxUpdatedAt + 1).setValue(now);
-
-      const clientId = idxClientId !== -1 ? data[i][idxClientId] : "";
-      const matterId = idxMatterId !== -1 ? data[i][idxMatterId] : "";
-
-      logActivity_({
-        action: "TASK_DONE",
-        message: `Task done: ${taskId}`,
-        clientId: clientId || "",
-        matterId: matterId || "",
-        meta: { row: rowNumber }
-      });
-
-      if (clientId) tryTouchClientLastActivity_(clientId, now);
-
-      return { ok: true, taskId, row: rowNumber };
-    }
-  }
-
-  return { ok: false, reason: "task not found" };
 }
 
 function crm_findOpenTasksByClientId(clientId) {
@@ -110,6 +63,7 @@ function crm_findOpenTasksByClientId(clientId) {
   const headers = c.HEADERS.TASKS;
   const idxClientId = headers.indexOf("CLIENT_ID");
   const idxStatus = headers.indexOf("STATUS");
+
   if (idxClientId === -1) throw new Error("TASKS missing CLIENT_ID header");
   if (idxStatus === -1) throw new Error("TASKS missing STATUS header");
 
@@ -122,30 +76,12 @@ function crm_findOpenTasksByClientId(clientId) {
   data.forEach((rowVals, i) => {
     const okClient = String(rowVals[idxClientId]) === String(clientId);
     const okStatus = String(rowVals[idxStatus]).toUpperCase() === "OPEN";
-    if (okClient && okStatus) res.push(rowToObj_(headers, rowVals, i + 2));
+    if (okClient && okStatus) {
+      res.push(rowToObj_(headers, rowVals, i + 2));
+    }
   });
 
   return res;
-}
-
-function test_createTask() {
-  const clientId = "CL_20260304_204602_6MLHYU"; // <-- свой
-  const matterId = "MAT_20260305_......";       // <-- из Matters
-
-  const res = crm_createTask({
-    clientId,
-    matterId,
-    type: "FOLLOW_UP",
-    title: "Позвонить клиенту и запросить טופס 250",
-    dueDate: nowIso_(),
-    priority: "HIGH",
-    notes: "Тестовая задача",
-  });
-
-  Logger.log(res);
-
-  const open = crm_findOpenTasksByClientId(clientId);
-  Logger.log(open);
 }
 
 /**
@@ -154,12 +90,13 @@ function test_createTask() {
  */
 function crm_listTasks(filter) {
   filter = filter || {};
+
   const ss = crm_getSpreadsheet_();
   const c = cfg_();
   const sh = ss.getSheetByName(c.SHEETS.TASKS);
   if (!sh) throw new Error("crm_listTasks: TASKS sheet not found");
 
-  const statusNeed = (filter.status || "OPEN").toString();
+  const statusNeed = filter.status ? String(filter.status) : "OPEN";
   const clientNeed = filter.clientId ? String(filter.clientId) : "";
   const matterNeed = filter.matterId ? String(filter.matterId) : "";
   const assigneeNeed = filter.assignee ? String(filter.assignee) : "";
@@ -173,21 +110,15 @@ function crm_listTasks(filter) {
 
   const idx = (name) => header.indexOf(name);
 
-  const iTaskId = idx("TASK_ID");
   const iClientId = idx("CLIENT_ID");
   const iMatterId = idx("MATTER_ID");
-  const iTitle = idx("TITLE");
-  const iDue = idx("DUE_DATE");
   const iStatus = idx("STATUS");
-  const iPriority = idx("PRIORITY");
   const iAssignee = idx("ASSIGNEE");
-  const iCreated = idx("CREATED_AT");
-  const iDone = idx("DONE_AT");
-  const iNotes = idx("NOTES");
-  const iType = idx("TYPE");
-  const iGeneratedBy = idx("GENERATED_BY");
+  const iDue = idx("DUE_DATE");
+  const iPriority = idx("PRIORITY");
 
   const out = [];
+
   for (let r = 0; r < rows.length; r++) {
     const row = rows[r];
     if (!row || row.join("") === "") continue;
@@ -204,38 +135,21 @@ function crm_listTasks(filter) {
     const assignee = String(row[iAssignee] || "");
     if (assigneeNeed && assignee !== assigneeNeed) continue;
 
-    out.push({
-      row: r + 2, // sheet row number (1-based + header)
-      taskId: row[iTaskId],
-      clientId,
-      matterId,
-      type: row[iType],
-      title: row[iTitle],
-      dueDate: row[iDue],
-      status,
-      priority: row[iPriority],
-      assignee,
-      createdAt: row[iCreated],
-      doneAt: row[iDone],
-      generatedBy: row[iGeneratedBy],
-      notes: row[iNotes],
-    });
-
-    if (out.length >= limit) break;
+    out.push(rowToObj_(header, row, r + 2));
   }
 
-  // Сортировка: сначала DUE_DATE (пустые вниз), потом PRIORITY
   const prRank = { HIGH: 1, MEDIUM: 2, LOW: 3 };
   out.sort((a, b) => {
-    const da = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
-    const db = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+    const da = a.DUE_DATE ? new Date(a.DUE_DATE).getTime() : Number.POSITIVE_INFINITY;
+    const db = b.DUE_DATE ? new Date(b.DUE_DATE).getTime() : Number.POSITIVE_INFINITY;
     if (da !== db) return da - db;
-    const pa = prRank[String(a.priority || "").toUpperCase()] || 9;
-    const pb = prRank[String(b.priority || "").toUpperCase()] || 9;
+
+    const pa = prRank[String(a.PRIORITY || "").toUpperCase()] || 9;
+    const pb = prRank[String(b.PRIORITY || "").toUpperCase()] || 9;
     return pa - pb;
   });
 
-  return out;
+  return out.slice(0, limit);
 }
 
 /**
@@ -261,7 +175,7 @@ function crm_markTaskDone(taskId, note) {
   const iTaskId = idx("TASK_ID");
   const iStatus = idx("STATUS");
   const iDoneAt = idx("DONE_AT");
-  const iUpdatedAt = idx("UPDATED_AT"); // может отсутствовать — ок
+  const iUpdatedAt = idx("UPDATED_AT");
   const iNotes = idx("NOTES");
   const iClientId = idx("CLIENT_ID");
   const iMatterId = idx("MATTER_ID");
@@ -273,35 +187,49 @@ function crm_markTaskDone(taskId, note) {
 
   const now = nowIso_();
 
-  // find row
   let rowNum = -1;
   let row = null;
+
   for (let r = 1; r < values.length; r++) {
     const curId = String(values[r][iTaskId] || "");
     if (curId === String(taskId)) {
-      rowNum = r + 1; // sheet row number (1-based)
+      rowNum = r + 1;
       row = values[r];
       break;
     }
   }
+
   if (rowNum < 0) throw new Error("crm_markTaskDone: task not found: " + taskId);
 
-  // update cells
   sh.getRange(rowNum, iStatus + 1).setValue("DONE");
   sh.getRange(rowNum, iDoneAt + 1).setValue(now);
   if (iUpdatedAt >= 0) sh.getRange(rowNum, iUpdatedAt + 1).setValue(now);
 
   if (iNotes >= 0 && note) {
     const prev = String(row[iNotes] || "");
-    const next = prev ? (prev + "\n" + note) : String(note);
+    const next = prev ? prev + "\n" + note : String(note);
     sh.getRange(rowNum, iNotes + 1).setValue(next);
   }
 
-  // activity log
-  const actor = Session.getActiveUser().getEmail() || "unknown";
   const clientId = iClientId >= 0 ? String(row[iClientId] || "") : "";
   const matterId = iMatterId >= 0 ? String(row[iMatterId] || "") : "";
   const title = iTitle >= 0 ? String(row[iTitle] || "") : "";
+
+  crm_logActivity({
+    action: "TASK_DONE",
+    message: `Task done: ${taskId}`,
+    clientId,
+    matterId,
+    meta: {
+      row: rowNum,
+      title,
+      note: note || "",
+    },
+  });
+
+  if (clientId) {
+    tryTouchClientLastActivity_(clientId, now);
+  }
 
   logInfo_("TASK_DONE", "Task marked DONE: " + taskId, {
     taskId,
@@ -309,7 +237,6 @@ function crm_markTaskDone(taskId, note) {
     title,
     clientId,
     matterId,
-    actor,
   });
 
   return { ok: true, taskId: String(taskId), row: rowNum };
@@ -324,6 +251,8 @@ function crm_reopenTask(taskId) {
   if (!sh) throw new Error("crm_reopenTask: TASKS sheet not found");
 
   const values = sh.getDataRange().getValues();
+  if (values.length < 2) throw new Error("crm_reopenTask: no data in TASKS");
+
   const header = values[0];
   const idx = (name) => header.indexOf(name);
 
@@ -331,18 +260,25 @@ function crm_reopenTask(taskId) {
   const iStatus = idx("STATUS");
   const iDoneAt = idx("DONE_AT");
   const iUpdatedAt = idx("UPDATED_AT");
+  const iClientId = idx("CLIENT_ID");
+  const iMatterId = idx("MATTER_ID");
+  const iTitle = idx("TITLE");
 
   if (iTaskId < 0 || iStatus < 0 || iDoneAt < 0) {
     throw new Error("crm_reopenTask: required columns missing (TASK_ID/STATUS/DONE_AT)");
   }
 
   let rowNum = -1;
+  let row = null;
+
   for (let r = 1; r < values.length; r++) {
     if (String(values[r][iTaskId] || "") === String(taskId)) {
       rowNum = r + 1;
+      row = values[r];
       break;
     }
   }
+
   if (rowNum < 0) throw new Error("crm_reopenTask: task not found: " + taskId);
 
   const now = nowIso_();
@@ -350,14 +286,32 @@ function crm_reopenTask(taskId) {
   sh.getRange(rowNum, iDoneAt + 1).setValue("");
   if (iUpdatedAt >= 0) sh.getRange(rowNum, iUpdatedAt + 1).setValue(now);
 
-  logInfo_("TASK_REOPEN", "Task reopened: " + taskId, { taskId, row: rowNum });
-  return { ok: true, taskId: String(taskId), row: rowNum };
-}
+  const clientId = iClientId >= 0 ? String(row[iClientId] || "") : "";
+  const matterId = iMatterId >= 0 ? String(row[iMatterId] || "") : "";
+  const title = iTitle >= 0 ? String(row[iTitle] || "") : "";
 
-//test function test_markDone
-function test_markDone() {
-  const taskId = "TSK_20260305_2A70B1"; // подставь свой
-  const res = crm_markTaskDone(taskId, "Закрыто автотестом");
-  Logger.log(JSON.stringify(res, null, 2));
-  return res;
+  crm_logActivity({
+    action: "TASK_REOPENED",
+    message: `Task reopened: ${taskId}`,
+    clientId,
+    matterId,
+    meta: {
+      row: rowNum,
+      title,
+    },
+  });
+
+  if (clientId) {
+    tryTouchClientLastActivity_(clientId, now);
+  }
+
+  logInfo_("TASK_REOPEN", "Task reopened: " + taskId, {
+    taskId,
+    row: rowNum,
+    title,
+    clientId,
+    matterId,
+  });
+
+  return { ok: true, taskId: String(taskId), row: rowNum };
 }
