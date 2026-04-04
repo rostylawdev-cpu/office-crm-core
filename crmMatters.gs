@@ -19,6 +19,20 @@ function crm_createMatter(input) {
   const actor = getActiveUserEmail_() || "unknown";
   const matterId = generateId_("MAT");
 
+  // Get client folder URL for matter subfolder structure (safe: returns null if unavailable)
+  let folderUrl = "";
+  const client = crm_findClientById(input.clientId);
+  if (client && client.FOLDER_URL) {
+    const clientFolderId = extractFolderIdFromUrl_(client.FOLDER_URL);
+    if (clientFolderId) {
+      const mattersFolder = crm_ensureDriveFolder_(clientFolderId, "02_Matters");
+      if (mattersFolder) {
+        const matterFolderUrl = crm_getOrCreateMatterFolder(matterId, input.title, mattersFolder.folderId);
+        folderUrl = matterFolderUrl || "";
+      }
+    }
+  }
+
   const rowObj = {
     MATTER_ID: matterId,
     CLIENT_ID: input.clientId,
@@ -27,7 +41,7 @@ function crm_createMatter(input) {
     STAGE: input.stage || "NEW",
     OWNER: input.owner || actor,
     AUTHORITY: input.authority || "",
-    FOLDER_URL: "",
+    FOLDER_URL: folderUrl,
     OPENED_AT: now,
     CLOSED_AT: "",
     UPDATED_AT: now,
@@ -47,6 +61,7 @@ function crm_createMatter(input) {
       title: rowObj.TITLE,
       category: rowObj.CATEGORY,
       authority: rowObj.AUTHORITY,
+      folderUrl: folderUrl || "",
     },
   });
 
@@ -188,4 +203,78 @@ function findRowsByColumnValue_(sheet, headers, colName, value) {
   });
 
   return res;
+}
+
+function crm_updateMatterStage(matterId, stage, note) {
+  if (!matterId) throw new Error("crm_updateMatterStage: missing matterId");
+  if (!stage) throw new Error("crm_updateMatterStage: missing stage");
+
+  const ss = crm_getSpreadsheet_();
+  const c = cfg_();
+  const sh = ss.getSheetByName(c.SHEETS.MATTERS);
+  if (!sh) throw new Error("crm_updateMatterStage: MATTERS sheet not found");
+
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) throw new Error("crm_updateMatterStage: no data in MATTERS");
+
+  const header = values[0];
+  const idx = function(name) { return header.indexOf(name); };
+
+  const iMatterId = idx("MATTER_ID");
+  const iStage = idx("STAGE");
+  const iUpdatedAt = idx("UPDATED_AT");
+  const iLastActivity = idx("LAST_ACTIVITY_AT");
+  const iClientId = idx("CLIENT_ID");
+  const iTitle = idx("TITLE");
+
+  if (iMatterId < 0 || iStage < 0) {
+    throw new Error("crm_updateMatterStage: required columns missing");
+  }
+
+  let rowNum = -1;
+  let row = null;
+
+  for (let r = 1; r < values.length; r++) {
+    if (String(values[r][iMatterId] || "") === String(matterId)) {
+      rowNum = r + 1;
+      row = values[r];
+      break;
+    }
+  }
+
+  if (rowNum < 0) throw new Error("crm_updateMatterStage: matter not found: " + matterId);
+
+  const now = nowIso_();
+  const nextStage = String(stage).toUpperCase();
+
+  sh.getRange(rowNum, iStage + 1).setValue(nextStage);
+  if (iUpdatedAt >= 0) sh.getRange(rowNum, iUpdatedAt + 1).setValue(now);
+  if (iLastActivity >= 0) sh.getRange(rowNum, iLastActivity + 1).setValue(now);
+
+  const clientId = iClientId >= 0 ? String(row[iClientId] || "") : "";
+  const title = iTitle >= 0 ? String(row[iTitle] || "") : "";
+
+  crm_logActivity({
+    action: "MATTER_STAGE_UPDATED",
+    message: `Matter stage updated: ${matterId} -> ${nextStage}`,
+    clientId: clientId,
+    matterId: matterId,
+    meta: {
+      row: rowNum,
+      title: title,
+      stage: nextStage,
+      note: note || "",
+    },
+  });
+
+  if (clientId) {
+    tryTouchClientLastActivity_(clientId, now);
+  }
+
+  return {
+    ok: true,
+    matterId: String(matterId),
+    stage: nextStage,
+    row: rowNum,
+  };
 }

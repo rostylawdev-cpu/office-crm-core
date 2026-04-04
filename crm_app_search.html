@@ -1,0 +1,241 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f6f8fc;
+        color: #1f2937;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        background: white;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .brand {
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .nav {
+        display: flex;
+        gap: 10px;
+      }
+
+      .nav a {
+        text-decoration: none;
+        color: #1a73e8;
+        font-weight: 600;
+      }
+
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .searchbar {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+
+      input[type="text"] {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid #d0d7de;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      .btn {
+        background: #1a73e8;
+        color: white;
+      }
+
+      .section {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+
+      .title {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+
+      .item {
+        border-top: 1px solid #eef2f7;
+        padding: 10px 0;
+      }
+
+      .item:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+
+      .item-title {
+        font-weight: 700;
+      }
+
+      .meta {
+        color: #6b7280;
+        font-size: 12px;
+        margin-top: 4px;
+      }
+
+      .open {
+        display: inline-block;
+        margin-top: 6px;
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .hint {
+        color: #6b7280;
+        font-size: 12px;
+        margin-top: 8px;
+      }
+
+      .loading {
+        color: #6b7280;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="topbar">
+      <div class="brand">CRM Search</div>
+      <div class="nav">
+        <a href="<?= webAppBase ?>?page=home">Home</a>
+        <a href="<?= webAppBase ?>?page=search">Search</a>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="searchbar">
+        <div class="row">
+          <input id="q" type="text" placeholder="Search by phone, name, LEAD_/CL_/MAT_..." />
+          <button class="btn" onclick="runSearch()">Search</button>
+        </div>
+        <div class="hint">Примеры: 050-7777777, Test Lead One, CL_, MAT_, LEAD_</div>
+      </div>
+
+      <div id="results" class="loading">Введите запрос и нажмите Search.</div>
+    </div>
+
+    <script>
+      const WEB_APP_BASE = "<?= webAppBase ?>";
+
+      function esc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function openUrl(page, id) {
+        let url = WEB_APP_BASE + "?page=" + encodeURIComponent(page);
+        if (id) {
+          url += "&id=" + encodeURIComponent(id);
+        }
+        return url;
+      }
+
+      function runSearch() {
+        const q = document.getElementById("q").value.trim();
+        if (!q) {
+          document.getElementById("results").innerHTML = "Введите запрос.";
+          return;
+        }
+
+        document.getElementById("results").innerHTML = "Searching...";
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            renderResults(res);
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById("results").innerHTML =
+              '<div class="section">Error: ' + esc(err && err.message ? err.message : err) + '</div>';
+          })
+          .crm_runSearch(q);
+      }
+
+      function renderSection(title, items, page, idField, renderFn) {
+        return `
+          <div class="section">
+            <div class="title">${esc(title)} (${items.length})</div>
+            ${
+              items.length
+                ? items.map(function(x) {
+                    return `
+                      <div class="item">
+                        ${renderFn(x)}
+                        <a class="open" href="${openUrl(page, x[idField] || "")}">Open</a>
+                      </div>
+                    `;
+                  }).join("")
+                : '<div class="meta">Ничего не найдено.</div>'
+            }
+          </div>
+        `;
+      }
+
+      function renderResults(res) {
+        const leads = res.leads || [];
+        const clients = res.clients || [];
+        const matters = res.matters || [];
+
+        document.getElementById("results").innerHTML = `
+          ${renderSection("Leads", leads, "lead", "LEAD_ID", function(x) {
+            return `
+              <div class="item-title">${esc(x.FULL_NAME || "")}</div>
+              <div class="meta">${esc(x.LEAD_ID || "")} · ${esc(x.PHONE || "")}</div>
+            `;
+          })}
+          ${renderSection("Clients", clients, "client", "CLIENT_ID", function(x) {
+            return `
+              <div class="item-title">${esc(x.FULL_NAME || "")}</div>
+              <div class="meta">${esc(x.CLIENT_ID || "")} · ${esc(x.PHONE || "")}</div>
+            `;
+          })}
+          ${renderSection("Matters", matters, "matter", "MATTER_ID", function(x) {
+            return `
+              <div class="item-title">${esc(x.TITLE || "")}</div>
+              <div class="meta">${esc(x.MATTER_ID || "")} · ${esc(x.STAGE || "")}</div>
+            `;
+          })}
+        `;
+      }
+    </script>
+  </body>
+</html>

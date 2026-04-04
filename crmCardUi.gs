@@ -4,7 +4,7 @@ function crm_openMatterCardFromActiveRow() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getActiveSheet();
   const row = sh.getActiveRange().getRow();
-  const matterId = String(sh.getRange(row, 1).getValue() || "").trim(); // MATTER_ID в колонке A
+  const matterId = String(sh.getRange(row, 1).getValue() || "").trim();
 
   if (!matterId) {
     SpreadsheetApp.getUi().alert("Выбери строку с MATTER_ID в колонке A.");
@@ -23,6 +23,7 @@ function crm_openMatterCard_(matterId) {
     tasksStatus: "OPEN",
     limitTasks: 50,
     limitActivities: 50,
+    limitDocuments: 50,
   });
 
   if (!card || !card.ok) {
@@ -40,4 +41,68 @@ function crm_openMatterCard_(matterId) {
     .setSandboxMode(HtmlService.SandboxMode.IFRAME);
 
   SpreadsheetApp.getUi().showSidebar(html);
+}
+
+/** ===== Matter actions from UI ===== */
+
+function crm_uiUpdateMatterStage(matterId, stage) {
+  return crm_updateMatterStage(matterId, stage, "Updated from Matter Card UI");
+}
+
+function crm_uiAddTaskToMatter(payload) {
+  if (!payload || !payload.matterId) throw new Error("crm_uiAddTaskToMatter: missing matterId");
+
+  const matter = crm_getMatterById(payload.matterId);
+  if (!matter) throw new Error("crm_uiAddTaskToMatter: matter not found");
+
+  return crm_createTask({
+    clientId: matter.CLIENT_ID,
+    matterId: payload.matterId,
+    type: payload.type || "GENERAL",
+    title: payload.title || "",
+    dueDate: payload.dueDate || "",
+    status: "OPEN",
+    priority: payload.priority || "MEDIUM",
+    assignee: payload.assignee || getActiveUserEmail_() || "unknown",
+    generatedBy: "MATTER_CARD_UI",
+    notes: payload.notes || "",
+  });
+}
+
+function crm_uiMarkTaskDone(taskId, note) {
+  return crm_markTaskDone(taskId, note || "Done from Matter Card UI");
+}
+
+function crm_uiAddDocumentToMatter(payload) {
+  if (!payload || !payload.matterId) throw new Error("crm_uiAddDocumentToMatter: missing matterId");
+
+  const matter = crm_getMatterById(payload.matterId);
+  if (!matter) throw new Error("crm_uiAddDocumentToMatter: matter not found");
+
+  return crm_addDocument({
+    clientId: matter.CLIENT_ID,
+    matterId: payload.matterId,
+    type: payload.type || "GENERAL",
+    status: payload.status || "DRAFT",
+    title: payload.title || "",
+    docUrl: payload.docUrl || "",
+    pdfUrl: payload.pdfUrl || "",
+    fileId: payload.fileId || "",
+    createdBy: getActiveUserEmail_() || "unknown",
+    notes: payload.notes || "",
+  });
+}
+
+function crm_uiGenerateAgreementPoa(matterId) {
+  if (!matterId) throw new Error("crm_uiGenerateAgreementPoa: matterId is required");
+  return crm_generateAgreementAndPoa(matterId);
+}
+
+function crm_uiCreateSignLinksForMatter(matterId) {
+  if (!matterId) throw new Error("crm_uiCreateSignLinksForMatter: matterId is required");
+  return crm_createSignLinksForMatter(matterId);
+}
+
+function crm_uiUploadDocumentToMatter(payload) {
+  return crm_uploadFileToDriveAndRegister(payload);
 }

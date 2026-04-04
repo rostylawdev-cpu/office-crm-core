@@ -1,0 +1,247 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body { margin:0; font-family:Arial,sans-serif; background:#f6f8fc; color:#1f2937; }
+      .topbar { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; }
+      .brand { font-size:22px; font-weight:700; }
+      .nav { display:flex; gap:10px; }
+      .nav a { text-decoration:none; color:#1a73e8; font-weight:600; cursor:pointer; }
+      .wrap { max-width:600px; margin:0 auto; padding:20px; }
+      .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:24px; margin-bottom:20px; }
+      .title { font-size:24px; font-weight:700; margin-bottom:20px; }
+      .form-group { margin-bottom:16px; }
+      .form-label { display:block; font-weight:600; margin-bottom:6px; color:#1f2937; }
+      .form-input, .form-textarea { width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; box-sizing:border-box; font-family:Arial,sans-serif; font-size:14px; }
+      .form-textarea { height:100px; resize:vertical; }
+      .form-input:focus, .form-textarea:focus { outline:none; border-color:#1a73e8; box-shadow:0 0 0 3px rgba(26,115,232,0.1); }
+      .file-input-wrapper { position:relative; overflow:hidden; display:inline-block; width:100%; }
+      .file-input-label { display:block; padding:10px; background:#f3f4f6; border:2px dashed #d1d5db; border-radius:8px; text-align:center; cursor:pointer; font-weight:600; color:#6b7280; transition:all 0.2s; }
+      .file-input-label:hover { background:#e5e7eb; border-color:#9ca3af; }
+      .file-input { position:absolute; left:-9999px; }
+      .file-name { color:#1f2937; font-weight:600; margin-top:6px; }
+      .button { padding:10px 16px; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px; transition:all 0.2s; }
+      .button-primary { background:#1a73e8; color:white; }
+      .button-primary:hover { background:#165fc8; }
+      .button-primary:disabled { background:#d1d5db; cursor:not-allowed; }
+      .button-secondary { background:#e5e7eb; color:#1f2937; margin-right:10px; }
+      .button-secondary:hover { background:#d1d5db; }
+      .success { padding:12px; background:#dcfce7; border:1px solid #86efac; border-radius:8px; color:#166534; margin-bottom:16px; display:none; }
+      .error { padding:12px; background:#fee2e2; border:1px solid #fca5a5; border-radius:8px; color:#991b1b; margin-bottom:16px; display:none; }
+      .loading { padding:12px; background:#dbeafe; border:1px solid #93c5fd; border-radius:8px; color:#1e40af; margin-bottom:16px; display:none; }
+      .button-group { display:flex; gap:10px; margin-top:20px; }
+      .muted { color:#6b7280; font-size:12px; margin-top:4px; }
+      .field-hint { color:#6b7280; font-size:13px; margin-top:4px; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">Upload Document</div>
+      <div class="nav">
+        <a href="<?= webAppBase ?>?page=home">Home</a>
+        <a href="<?= webAppBase ?>?page=matter&id=<?= matterId ?>">Back to Matter</a>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="card">
+        <div class="title">Upload Document to Matter</div>
+
+        <div class="success" id="successMsg"></div>
+        <div class="error" id="errorMsg"></div>
+        <div class="loading" id="loadingMsg">Uploading file...</div>
+
+        <form id="uploadForm" onsubmit="submitForm(event); return false;">
+
+          <div class="form-group">
+            <label class="form-label">Matter</label>
+            <div style="padding:10px; background:#f3f4f6; border-radius:8px; border:1px solid #d1d5db;">
+              <strong><?= matterTitle ?></strong>
+              <div class="muted"><?= matterId ?></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="fileInput">Select File *</label>
+            <div class="file-input-wrapper">
+              <label class="file-input-label" id="fileLabel">
+                Choose File...
+                <input type="file" id="fileInput" class="file-input" required>
+              </label>
+            </div>
+            <div class="file-name" id="fileName"></div>
+            <div class="field-hint">Supports PDF, Word, images, etc.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="titleInput">Document Title *</label>
+            <input type="text" id="titleInput" class="form-input" placeholder="e.g., Client Agreement" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="typeInput">Document Type</label>
+            <select id="typeInput" class="form-input" style="height:40px;">
+              <option value="GENERAL">General</option>
+              <option value="CONTRACT">Contract</option>
+              <option value="INVOICE">Invoice</option>
+              <option value="CORRESPONDENCE">Correspondence</option>
+              <option value="DISCOVERY">Discovery</option>
+              <option value="EVIDENCE">Evidence</option>
+              <option value="PLEADING">Pleading</option>
+              <option value="BRIEF">Brief</option>
+              <option value="MOTION">Motion</option>
+              <option value="ORDER">Order</option>
+              <option value="RULING">Ruling</option>
+              <option value="MEMO">Memo</option>
+              <option value="NOTE">Note</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="statusInput">Status</label>
+            <select id="statusInput" class="form-input" style="height:40px;">
+              <option value="PENDING">Pending Review</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="ARCHIVED">Archived</option>
+              <option value="ACTIVE">Active</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="notesInput">Notes</label>
+            <textarea id="notesInput" class="form-textarea" placeholder="Add any notes..."></textarea>
+            <div class="field-hint">Optional</div>
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="button button-secondary" onclick="goBack()">Cancel</button>
+            <button type="submit" class="button button-primary" id="submitBtn">Upload Document</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const matterId = '<?= matterId ?>';
+      const webAppBase = '<?= webAppBase ?>';
+
+      document.getElementById('fileInput').addEventListener('change', function(e) {
+        const fileName = e.target.files[0]?.name || '';
+        if (fileName) {
+          document.getElementById('fileName').textContent = fileName;
+          // Auto-fill title with file name (without extension)
+          if (!document.getElementById('titleInput').value) {
+            const nameWithoutExt = fileName.split('.').slice(0, -1).join('.');
+            document.getElementById('titleInput').value = nameWithoutExt;
+          }
+        } else {
+          document.getElementById('fileName').textContent = '';
+        }
+      });
+
+      function submitForm(event) {
+        event.preventDefault();
+
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+
+        if (!file) {
+          showError('Please select a file');
+          return;
+        }
+
+        const title = document.getElementById('titleInput').value.trim();
+        if (!title) {
+          showError('Please enter a document title');
+          return;
+        }
+
+        showLoading();
+        hideError();
+        hideSuccess();
+        document.getElementById('submitBtn').disabled = true;
+
+        // Read file as base64
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64Data = e.target.result.split(',')[1];
+          const mimeType = file.type || 'application/octet-stream';
+
+          const data = {
+            matterId: matterId,
+            fileName: file.name,
+            title: title,
+            type: document.getElementById('typeInput').value,
+            status: document.getElementById('statusInput').value,
+            notes: document.getElementById('notesInput').value.trim(),
+            mimeType: mimeType,
+            base64Data: base64Data,
+          };
+
+          google.script.run
+            .withSuccessHandler(function(result) {
+              hideLoading();
+              if (result.ok) {
+                showSuccess('Document uploaded successfully! Redirecting...');
+                setTimeout(() => {
+                  window.location.href = webAppBase + '?page=matter&id=' + matterId;
+                }, 1500);
+              } else {
+                showError(result.error || 'Upload failed');
+                document.getElementById('submitBtn').disabled = false;
+              }
+            })
+            .withFailureHandler(function(err) {
+              hideLoading();
+              showError('Error: ' + (err.message || err));
+              document.getElementById('submitBtn').disabled = false;
+            })
+            .crm_webUploadMatterDocument(data);
+        };
+
+        reader.onerror = function() {
+          hideLoading();
+          showError('Error reading file');
+          document.getElementById('submitBtn').disabled = false;
+        };
+
+        reader.readAsDataURL(file);
+      }
+
+      function goBack() {
+        window.location.href = webAppBase + '?page=matter&id=' + matterId;
+      }
+
+      function showError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+
+      function hideError() {
+        document.getElementById('errorMsg').style.display = 'none';
+      }
+
+      function showSuccess(msg) {
+        const el = document.getElementById('successMsg');
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+
+      function hideSuccess() {
+        document.getElementById('successMsg').style.display = 'none';
+      }
+
+      function showLoading() {
+        document.getElementById('loadingMsg').style.display = 'block';
+      }
+
+      function hideLoading() {
+        document.getElementById('loadingMsg').style.display = 'none';
+      }
+    </script>
+  </body>
+</html>

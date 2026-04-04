@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <style>
       body { font-family: Arial, sans-serif; padding: 12px; }
+
       .h { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
       .sub { color:#555; margin-bottom: 12px; }
       .box { border:1px solid #ddd; border-radius:10px; padding:10px; margin:10px 0; }
@@ -17,96 +18,160 @@
       button { cursor:pointer; border:0; border-radius:10px; padding:8px 10px; }
       .btn { background:#1a73e8; color:#fff; }
       .btn2 { background:#f1f3f4; }
-      .actions { display:flex; gap:8px; margin-top:10px; }
+      .btn3 { background:#188038; color:#fff; }
+      .btn4 { background:#b06000; color:#fff; }
       hr { border:0; border-top:1px solid #eee; margin: 10px 0; }
-      pre { background:#f7f7f7; padding:8px; border-radius:10px; overflow:auto; }
+      pre { background:#f7f7f7; padding:8px; border-radius:10px; overflow:auto; white-space:pre-wrap; }
+
+      input, select, textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        border: 1px solid #d6d6d6;
+        border-radius: 8px;
+        margin-top: 4px;
+        margin-bottom: 8px;
+      }
+
+      label { font-size: 12px; color:#555; display:block; margin-top: 6px; }
     </style>
   </head>
+
   <body>
     <? var ok = card && card.ok; ?>
-    <div class="h">Matter Card</div>
+
+    <div class="h">CRM Matter Card</div>
     <div class="sub">
       ID: <span class="pill"><?= matterId ?></span>
-      <? if (!ok) { ?>
-        <span class="pill">NOT FOUND</span>
-      <? } ?>
     </div>
 
     <? if (!ok) { ?>
       <div class="box">
-        <b>Ошибка:</b> <?= card.error ?>
+        Ошибка: <?= card.error ?>
       </div>
     <? } else { ?>
+
+      <!-- MATTER -->
       <div class="box">
-        <div class="row"><div class="k">Title</div><div class="v"><?= card.matter.TITLE || "" ?></div></div>
-        <div class="row"><div class="k">Category</div><div class="v"><?= card.matter.CATEGORY || "" ?></div></div>
-        <div class="row"><div class="k">Stage</div><div class="v"><?= card.matter.STAGE || "" ?></div></div>
-        <div class="row"><div class="k">Authority</div><div class="v"><?= card.matter.AUTHORITY || "" ?></div></div>
-        <div class="row"><div class="k">Owner</div><div class="v"><?= card.matter.OWNER || "" ?></div></div>
+        <div class="row"><div class="k">Title</div><div class="v"><?= card.matter.TITLE ?></div></div>
+        <div class="row"><div class="k">Stage</div><div class="v"><?= card.matter.STAGE ?></div></div>
+        <div class="row"><div class="k">Owner</div><div class="v"><?= card.matter.OWNER ?></div></div>
       </div>
 
+      <!-- DOCUMENTS -->
       <div class="box">
-        <div class="h" style="font-size:14px;margin:0 0 6px;">Client</div>
-        <div class="row"><div class="k">Name</div><div class="v"><?= card.client?.FULL_NAME || "" ?></div></div>
-        <div class="row"><div class="k">Phone</div><div class="v"><?= card.client?.PHONE || "" ?></div></div>
-        <div class="row"><div class="k">Email</div><div class="v"><?= card.client?.EMAIL || "" ?></div></div>
+        <div class="h" style="font-size:14px;">Add Document</div>
+
+        <label>Title</label>
+        <input id="docTitle" placeholder="Document title">
+
+        <label>Type</label>
+        <input id="docType" placeholder="AGREEMENT / GENERAL">
+
+        <label>Status</label>
+        <select id="docStatus">
+          <option value="DRAFT">DRAFT</option>
+          <option value="READY">READY</option>
+          <option value="SIGNED">SIGNED</option>
+        </select>
+
+        <label>DOC URL</label>
+        <input id="docUrl">
+
+        <label>PDF URL</label>
+        <input id="pdfUrl">
+
+        <label>File ID</label>
+        <input id="fileId">
+
+        <label>Upload file</label>
+        <input id="uploadFile" type="file">
+
+        <label>Notes</label>
+        <textarea id="docNotes"></textarea>
+
+        <button class="btn3" onclick="addDocument()">Add Document</button>
+        <button class="btn4" onclick="uploadDocument()">Upload File</button>
       </div>
 
+      <!-- DOCUMENT LIST -->
       <div class="box">
-        <div class="h" style="font-size:14px;margin:0 0 6px;">Open tasks (<?= (card.tasks||[]).length ?>)</div>
-        <? if ((card.tasks||[]).length === 0) { ?>
-          <div class="muted">Нет открытых задач.</div>
+        <div class="h" style="font-size:14px;">Documents</div>
+
+        <? if ((card.documents||[]).length === 0) { ?>
+          <div class="muted">Нет документов</div>
         <? } else { ?>
           <ul class="list">
-            <? for (var i=0; i<card.tasks.length; i++) { var t = card.tasks[i]; ?>
+            <? for (var i=0; i<card.documents.length; i++) { var d = card.documents[i]; ?>
               <li>
-                <b><?= t.TITLE || "" ?></b>
-                <div class="muted">
-                  <?= t.TYPE || "" ?> · <?= t.PRIORITY || "" ?> · due: <?= t.DUE_DATE || "" ?>
-                </div>
+                <b><?= d.TITLE ?></b>
+                <div class="muted"><?= d.TYPE ?> · <?= d.STATUS ?></div>
+                <? if (d.PDF_URL) { ?>
+                  <div><a href="<?= d.PDF_URL ?>" target="_blank">Open PDF</a></div>
+                <? } ?>
               </li>
             <? } ?>
           </ul>
         <? } ?>
       </div>
 
-      <div class="box">
-        <div class="h" style="font-size:14px;margin:0 0 6px;">Last activities (<?= (card.activities||[]).length ?>)</div>
-        <? if ((card.activities||[]).length === 0) { ?>
-          <div class="muted">Активностей пока нет.</div>
-        <? } else { ?>
-          <ul class="list">
-            <? for (var j=0; j<card.activities.length; j++) { var a = card.activities[j]; ?>
-              <li>
-                <b><?= a.ACTION || "" ?></b> — <?= a.MESSAGE || "" ?>
-                <div class="muted"><?= a.TS || "" ?> · <?= a.ACTOR || "" ?></div>
-              </li>
-            <? } ?>
-          </ul>
-        <? } ?>
-      </div>
-
-      <div class="actions">
-        <button class="btn" onclick="refresh()">Refresh</button>
-        <button class="btn2" onclick="showRaw()">Raw JSON</button>
-      </div>
-
-      <div id="raw" style="display:none;">
-        <hr/>
-        <pre><?= JSON.stringify(card, null, 2) ?></pre>
-      </div>
     <? } ?>
 
-    <script>
-      function refresh() {
-        google.script.run
-          .withSuccessHandler(function(){ google.script.host.close(); })
-          .crm_openMatterCardById("<?= matterId ?>");
-      }
-      function showRaw() {
-        const el = document.getElementById('raw');
-        el.style.display = (el.style.display === 'none') ? 'block' : 'none';
-      }
-    </script>
+<script>
+
+function addDocument() {
+  const payload = {
+    matterId: "<?= matterId ?>",
+    title: document.getElementById("docTitle").value.trim(),
+    type: document.getElementById("docType").value.trim(),
+    status: document.getElementById("docStatus").value,
+    docUrl: document.getElementById("docUrl").value.trim(),
+    pdfUrl: document.getElementById("pdfUrl").value.trim(),
+    fileId: document.getElementById("fileId").value.trim(),
+    notes: document.getElementById("docNotes").value.trim()
+  };
+
+  if (!payload.title) {
+    alert("Title required");
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(() => alert("Document added"))
+    .crm_uiAddDocumentToMatter(payload);
+}
+
+
+function uploadDocument() {
+  const file = document.getElementById("uploadFile").files[0];
+
+  if (!file) {
+    alert("Choose file");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const base64 = e.target.result.split(",")[1];
+
+    google.script.run
+      .withSuccessHandler(() => alert("Uploaded ✅"))
+      .crm_uiUploadDocumentToMatter({
+        matterId: "<?= matterId ?>",
+        title: file.name,
+        type: "GENERAL",
+        status: "READY",
+        fileName: file.name,
+        mimeType: file.type,
+        base64Data: base64
+      });
+  };
+
+  reader.readAsDataURL(file);
+}
+
+</script>
+
   </body>
 </html>

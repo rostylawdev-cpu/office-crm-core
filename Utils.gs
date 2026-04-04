@@ -68,6 +68,15 @@ function ensureHeaders_(sh, headers) {
   if (needInit) {
     sh.getRange(1, 1, 1, headers.length).setValues([headers]);
     sh.setFrozenRows(1);
+    return;
+  }
+
+  // Append any new headers not yet present in the sheet (append-only, never reorders existing columns)
+  const existingSet = new Set(existing.map(function(h) { return String(h); }));
+  const toAdd = headers.filter(function(h) { return h && !existingSet.has(h); });
+  if (toAdd.length > 0) {
+    const startCol = sh.getLastColumn() + 1;
+    sh.getRange(1, startCol, 1, toAdd.length).setValues([toAdd]);
   }
 }
 
@@ -171,4 +180,104 @@ function escapeHtml_(s) {
     "\"": "&quot;",
     "'": "&#39;"
   }[c]));
+}
+
+function getRowValueByHeader_(sheet, rowNumber, headerName) {
+  if (!sheet) throw new Error("getRowValueByHeader_: sheet is required");
+  if (!rowNumber || rowNumber < 1) throw new Error("getRowValueByHeader_: invalid rowNumber");
+  if (!headerName) throw new Error("getRowValueByHeader_: headerName is required");
+
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return "";
+
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const idx = headers.indexOf(headerName);
+  if (idx === -1) return "";
+
+  return sheet.getRange(rowNumber, idx + 1).getValue();
+}
+
+function crm_getAllRowsFromSheet_(sheetName, headers) {
+  const ss = crm_getSpreadsheet_();
+  const sh = ss.getSheetByName(sheetName);
+  if (!sh) throw new Error("Sheet not found: " + sheetName);
+
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+
+  const header = values[0];
+  const rows = values.slice(1);
+
+  return rows
+    .filter(function (row) {
+      return row.some(function (cell) { return cell !== ""; });
+    })
+    .map(function (row, i) {
+      return rowToObj_(header, row, i + 2);
+    });
+}
+
+/**
+ * Extract folder ID from Google Drive URL.
+ * Safe: returns null if URL is invalid or not a Drive folder URL.
+ */
+function extractFolderIdFromUrl_(folderUrl) {
+  if (!folderUrl) return null;
+
+  try {
+    const url = String(folderUrl).trim();
+
+    // Format: https://drive.google.com/drive/folders/{FOLDER_ID}
+    const match = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+
+    // Format: https://drive.google.com/open?id={FOLDER_ID}
+    const match2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match2 && match2[1]) {
+      return match2[1];
+    }
+
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Extract ID from Google Drive/Docs URL (generic for both folders and files).
+ * Handles:
+ *   - /d/{ID} format (Google Docs)
+ *   - ?id= or &id= query param format
+ *   - /folders/{ID} format (Google Drive folders)
+ */
+function extractIdFromUrl_(url) {
+  if (!url) return null;
+
+  try {
+    const str = String(url).trim();
+
+    // Format: https://docs.google.com/document/d/FILE_ID/edit
+    const match1 = str.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match1 && match1[1]) {
+      return match1[1];
+    }
+
+    // Format: ?id=FILE_ID or &id=FILE_ID
+    const match2 = str.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match2 && match2[1]) {
+      return match2[1];
+    }
+
+    // Format: /folders/FOLDER_ID
+    const match3 = str.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    if (match3 && match3[1]) {
+      return match3[1];
+    }
+
+    return null;
+  } catch (e) {
+    return null;
+  }
 }

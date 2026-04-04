@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body { margin:0; font-family:Arial,sans-serif; background:#f6f8fc; color:#1f2937; }
+      .topbar { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; }
+      .brand { font-size:22px; font-weight:700; }
+      .nav { display:flex; gap:10px; }
+      .nav a { text-decoration:none; color:#1a73e8; font-weight:600; }
+      .wrap { max-width:700px; margin:0 auto; padding:20px; }
+      .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:20px; }
+      .form-group { margin-bottom:14px; }
+      label { display:block; font-weight:600; margin-bottom:4px; }
+      input, select, textarea { width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; box-sizing:border-box; }
+      button { background:#1a73e8; color:white; padding:10px 14px; border:none; border-radius:8px; font-weight:600; cursor:pointer; }
+      button:hover { background:#1557b0; }
+      .muted { color:#6b7280; font-size:13px; margin-top:3px; }
+      .message { margin-bottom:12px; padding:10px; border-radius:8px; }
+      .success { background:#dcfce7; color:#166534; }
+      .error { background:#fee2e2; color:#991b1b; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">Edit Client</div>
+      <div class="nav">
+        <a href="<?= webAppBase ?>?page=home">Home</a>
+        <a href="<?= webAppBase ?>?page=search">Search</a>
+        <a href="<?= webAppBase ?>?page=client&id=<?= clientId ?>">Back to Client</a>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="card">
+        <div class="form-group"><strong>Client ID:</strong> <span><?= clientId ?></span></div>
+
+        <div id="statusMsg" class="message" style="display:none;"></div>
+
+        <form id="editClientForm">
+          <div class="form-group">
+            <label for="fullName">Full Name *</label>
+            <input id="fullName" name="fullName" type="text" required value="<?= client.FULL_NAME || '' ?>" />
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone *</label>
+            <input id="phone" name="phone" type="text" required value="<?= client.PHONE || '' ?>" />
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" value="<?= client.EMAIL || '' ?>" />
+          </div>
+          <div class="form-group">
+            <label for="idType">ID Type</label>
+            <select id="idType" name="idType">
+              <option value="">-- select type --</option>
+              <option value="TZ" <?= client.ID_TYPE === 'TZ' ? 'selected' : '' ?>>TZ</option>
+              <option value="Passport" <?= client.ID_TYPE === 'Passport' ? 'selected' : '' ?>>Passport</option>
+              <option value="Darkon" <?= client.ID_TYPE === 'Darkon' ? 'selected' : '' ?>>Darkon</option>
+              <option value="Teudat Zehut" <?= client.ID_TYPE === 'Teudat Zehut' ? 'selected' : '' ?>>Teudat Zehut</option>
+              <option value="Other" <?= client.ID_TYPE === 'Other' ? 'selected' : '' ?>>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="idNumber">ID Number</label>
+            <input id="idNumber" name="idNumber" type="text" value="<?= client.ID_NUMBER || '' ?>" />
+          </div>
+          <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+              <option value="">-- select status --</option>
+              <option value="NEW" <?= client.STATUS === 'NEW' ? 'selected' : '' ?>>NEW</option>
+              <option value="ACTIVE" <?= client.STATUS === 'ACTIVE' ? 'selected' : '' ?>>ACTIVE</option>
+              <option value="INACTIVE" <?= client.STATUS === 'INACTIVE' ? 'selected' : '' ?>>INACTIVE</option>
+              <option value="ARCHIVED" <?= client.STATUS === 'ARCHIVED' ? 'selected' : '' ?>>ARCHIVED</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="owner">Owner</label>
+            <input id="owner" name="owner" type="text" value="<?= client.OWNER || '' ?>" />
+          </div>
+          <div class="form-group">
+            <label for="source">Source</label>
+            <input id="source" name="source" type="text" value="<?= client.SOURCE || '' ?>" />
+          </div>
+
+          <button type="submit">Save Client</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const WEB_APP_BASE = "<?= webAppBase ?>";
+      const CLIENT_ID = "<?= clientId ?>";
+
+      function showMessage(type, text) {
+        const el = document.getElementById('statusMsg');
+        el.style.display = 'block';
+        el.className = 'message ' + (type === 'success' ? 'success' : 'error');
+        el.textContent = text;
+      }
+
+      document.getElementById('editClientForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fullName = document.getElementById('fullName').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        if (!fullName || !phone) {
+          showMessage('error', 'Full Name and Phone are required.');
+          return;
+        }
+
+        const payload = {
+          clientId: CLIENT_ID,
+          fullName: fullName,
+          phone: phone,
+          email: document.getElementById('email').value.trim(),
+          idType: document.getElementById('idType').value.trim(),
+          idNumber: document.getElementById('idNumber').value.trim(),
+          status: document.getElementById('status').value.trim(),
+          owner: document.getElementById('owner').value.trim(),
+          source: document.getElementById('source').value.trim(),
+        };
+
+        showMessage('success', 'Updating client...');
+
+        google.script.run
+          .withSuccessHandler(function () {
+            showMessage('success', 'Client updated successfully. Redirecting...');
+            setTimeout(function () {
+              window.location.href = WEB_APP_BASE + '?page=client&id=' + encodeURIComponent(CLIENT_ID);
+            }, 1000);
+          })
+          .withFailureHandler(function(err) {
+            showMessage('error', 'Error updating client: ' + (err.message || err));
+          })
+          .crm_webUpdateClient(payload);
+      });
+    </script>
+  </body>
+</html>

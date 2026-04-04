@@ -1,0 +1,214 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <style>
+      body { margin:0; font-family:Arial,sans-serif; background:#f6f8fc; color:#1f2937; }
+      .wrap { max-width:520px; margin:32px auto; padding:0 20px; }
+      .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:24px; }
+      h1 { font-size:22px; font-weight:700; margin:0 0 20px; }
+      .form-group { margin-bottom:14px; }
+      label { display:block; font-size:13px; font-weight:600; color:#6b7280; margin-bottom:4px; }
+      input, select { width:100%; padding:9px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; box-sizing:border-box; }
+      input:focus, select:focus { outline:none; border-color:#1a73e8; }
+      input[readonly] { background:#f3f4f6; color:#6b7280; }
+      button[type="submit"] { background:#1a73e8; color:white; padding:10px 20px; border:none; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; width:100%; margin-top:4px; }
+      button[type="submit"]:hover:not(:disabled) { background:#1557b0; }
+      button[type="submit"]:disabled { background:#9ca3af; cursor:not-allowed; }
+      .status { margin-top:14px; padding:10px 14px; border-radius:10px; font-size:14px; display:none; }
+      .status.success { background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; display:block; }
+      .status.error { background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; display:block; }
+      .btn { display:inline-block; text-decoration:none; padding:8px 14px; border-radius:10px; background:#1a73e8; color:white; font-weight:600; font-size:13px; margin-top:8px; }
+      .info { font-size:13px; color:#6b7280; margin-bottom:16px; padding:8px 12px; background:#eff6ff; border-left:3px solid #1a73e8; border-radius:0 6px 6px 0; }
+      .warning-box { padding:12px; background:#fff3cd; border:1px solid #ffc107; border-radius:8px; }
+      .home-link { display:block; margin-bottom:14px; font-size:13px; color:#1a73e8; text-decoration:none; font-weight:600; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <a class="home-link" href="<?= webAppBase ?>?page=home">← Home</a>
+      <div class="card">
+        <h1>New Matter</h1>
+        <div id="sourceInfo" class="info" style="display:none;"></div>
+        <form id="newMatterForm">
+          <div class="form-group">
+            <label>Client</label>
+            <!-- Auto-filled when coming from lead/client context -->
+            <input name="CLIENT_ID" id="clientIdInput" required readonly>
+            <!-- Dropdown shown when no context is available -->
+            <select id="clientIdSelect" style="display:none;width:100%;padding:9px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;">
+              <option value="">-- Select Client --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select name="CATEGORY">
+              <option value="">-- Select Category --</option>
+              <option value="WORK_ACCIDENT">Work Accident</option>
+              <option value="LABOR_DISPUTE">Labor Dispute</option>
+              <option value="GENERAL">General</option>
+              <option value="EMPLOYMENT">Employment</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Authority</label>
+            <select name="AUTHORITY">
+              <option value="">-- Select Authority --</option>
+              <option value="LABOR_COURT">Labor Court</option>
+              <option value="NATIONAL_LABOR_COURT">National Labor Court</option>
+              <option value="LABOR_INSURANCE">Labor Insurance</option>
+              <option value="EMPLOYER">Employer/HR</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Owner</label>
+            <select name="OWNER">
+              <option value="">-- Auto-assign --</option>
+              <option value="CURRENT_USER">Me (Current User)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Title</label>
+            <input name="TITLE" required>
+          </div>
+          <div class="form-group">
+            <button type="submit" id="newMatterSubmit">Create Matter</button>
+          </div>
+        </form>
+        <div id="newMatterStatus" class="status"></div>
+      </div>
+    </div>
+
+    <script>
+      const WEB_APP_BASE = "<?= webAppBase ?>";
+      const SOURCE_ID = "<?= entityId ?>";
+      const CATEGORIES = ["WORK_ACCIDENT", "LABOR_DISPUTE", "GENERAL", "EMPLOYMENT", "OTHER"];
+      const AUTHORITIES = ["LABOR_COURT", "NATIONAL_LABOR_COURT", "LABOR_INSURANCE", "EMPLOYER", "OTHER"];
+
+      function setClientId(clientId) {
+        document.getElementById("clientIdInput").value = clientId;
+      }
+
+      function initializeForm() {
+        if (!SOURCE_ID) {
+          // No context: show a client dropdown loaded from server
+          document.getElementById("sourceInfo").style.display = "";
+          document.getElementById("sourceInfo").textContent = "Select a client to create matter for.";
+          document.getElementById("clientIdInput").style.display = "none";
+          const sel = document.getElementById("clientIdSelect");
+          sel.style.display = "";
+          sel.required = true;
+          sel.addEventListener("change", function() {
+            document.getElementById("clientIdInput").value = this.value;
+          });
+          google.script.run
+            .withSuccessHandler(function(clients) {
+              clients.forEach(function(cl) {
+                const opt = document.createElement("option");
+                opt.value = cl.clientId;
+                opt.textContent = cl.label;
+                sel.appendChild(opt);
+              });
+            })
+            .withFailureHandler(function() {})
+            .crm_webListClientsForSelect();
+          return;
+        }
+
+        // Check if source is a lead (starts with LEAD)
+        if (String(SOURCE_ID).startsWith("LEAD")) {
+          document.getElementById("sourceInfo").style.display = "";
+          document.getElementById("sourceInfo").textContent = "Creating matter from lead: " + SOURCE_ID;
+
+          // Get lead info to resolve client
+          google.script.run
+            .withSuccessHandler(function (leadInfo) {
+              if (!leadInfo.ok) {
+                document.getElementById("sourceInfo").innerHTML = '<span style="color:#991b1b;">Lead not found</span>';
+                return;
+              }
+
+              // SAFETY CHECK: Only proceed if lead has a linked CLIENT_ID
+              // Never use LEAD_ID as CLIENT_ID
+              if (!leadInfo.linkedClientId) {
+                document.getElementById("newMatterForm").style.display = "none";
+                document.getElementById("sourceInfo").innerHTML =
+                  '<div class="warning-box"><b>This lead is not yet linked to a client.</b><br>' +
+                  'Please convert the lead to a client first:<br>' +
+                  '<a href="' + WEB_APP_BASE + '?page=new_client&id=' + encodeURIComponent(SOURCE_ID) + '" class="btn">Convert Lead to Client</a>' +
+                  '</div>';
+                return;
+              }
+
+              // Lead has a linked client - safe to proceed
+              setClientId(leadInfo.linkedClientId);
+
+              // Prefill category from lead's case type
+              if (leadInfo.lead.CASE_TYPE && CATEGORIES.includes(leadInfo.lead.CASE_TYPE)) {
+                document.querySelector('select[name="CATEGORY"]').value = leadInfo.lead.CASE_TYPE;
+              }
+            })
+            .crm_webGetLeadInfo(SOURCE_ID);
+        } else {
+          // SOURCE_ID is a client ID
+          setClientId(SOURCE_ID);
+          document.getElementById("sourceInfo").style.display = "";
+          document.getElementById("sourceInfo").textContent = "Creating matter for client: " + SOURCE_ID;
+        }
+      }
+
+      // Initialize on load
+      initializeForm();
+
+      document.getElementById("newMatterForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const btn = document.getElementById("newMatterSubmit");
+        const statusEl = document.getElementById("newMatterStatus");
+
+        const clientId = e.target.CLIENT_ID.value.trim();
+        const category = e.target.CATEGORY.value.trim();
+        const authority = e.target.AUTHORITY.value.trim();
+        const owner = e.target.OWNER.value.trim();
+        const title = e.target.TITLE.value.trim();
+
+        if (!clientId) {
+          statusEl.className = "status error";
+          statusEl.textContent = "CLIENT_ID is required";
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Creating matter...";
+        statusEl.className = "status";
+        statusEl.innerHTML = "";
+
+        const data = {
+          CLIENT_ID: clientId,
+          CATEGORY: category || "GENERAL",
+          AUTHORITY: authority,
+          OWNER: owner,
+          TITLE: title,
+          sourceLeadId: SOURCE_ID || ""
+        };
+
+        google.script.run
+          .withSuccessHandler(function (matter) {
+            btn.disabled = false;
+            btn.textContent = "Create Matter";
+            statusEl.className = "status success";
+            statusEl.innerHTML = 'Matter created! <a class="btn" href="' + WEB_APP_BASE + '?page=matter&id=' + encodeURIComponent(matter.id) + '">Open Matter</a>';
+          })
+          .withFailureHandler(function (err) {
+            btn.disabled = false;
+            btn.textContent = "Create Matter";
+            statusEl.className = "status error";
+            statusEl.textContent = "Error: " + (err.message || err);
+          })
+          .crm_webCreateMatter(data);
+      });
+    </script>
+  </body>
+</html>

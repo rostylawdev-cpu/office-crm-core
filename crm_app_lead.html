@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body { margin:0; font-family:Arial,sans-serif; background:#f6f8fc; color:#1f2937; }
+      .topbar { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; }
+      .brand { font-size:22px; font-weight:700; }
+      .nav { display:flex; gap:10px; }
+      .nav a { text-decoration:none; color:#1a73e8; font-weight:600; }
+      .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+      .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:16px; margin-bottom:14px; }
+      .row { display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
+      .k { color:#6b7280; min-width:140px; }
+      .v { font-weight:600; word-break:break-word; }
+      .title { font-size:24px; font-weight:700; margin-bottom:8px; }
+      .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; font-size:12px; }
+      .list { padding-left:18px; }
+      .muted { color:#6b7280; font-size:12px; }
+      .btn { display:inline-block; text-decoration:none; padding:10px 14px; border-radius:10px; background:#1a73e8; color:white; font-weight:600; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">CRM Lead</div>
+      <div class="nav">
+        <a href="<?= webAppBase ?>?page=home">Home</a>
+        <a href="<?= webAppBase ?>?page=search">Search</a>
+      </div>
+    </div>
+
+    <div class="wrap" style="margin-bottom:16px;">
+      <? if (!card || !card.client) { ?>
+        <a class="btn" href="<?= webAppBase ?>?page=start_onboarding&id=<?= entityId ?>">Start Client Onboarding</a>
+        <a class="btn" href="<?= webAppBase ?>?page=new_client&id=<?= entityId ?>" style="background:#ff9900;">Force Convert to Client</a>
+      <? } else { ?>
+        <a class="btn" href="<?= webAppBase ?>?page=client&id=<?= card.client.CLIENT_ID ?>">Open Client</a>
+      <? } ?>
+      <? if (card && card.client) { ?>
+        <a class="btn" href="<?= webAppBase ?>?page=new_matter&id=<?= card.client.CLIENT_ID ?>">Create Matter</a>
+      <? } ?>
+    </div>
+
+    <div class="wrap">
+
+    <div class="wrap">
+      <? if (!card || !card.ok) { ?>
+        <div class="card">Lead not found: <?= entityId ?></div>
+      <? } else { ?>
+        <div class="card">
+          <div class="title"><?= card.lead.FULL_NAME || "" ?></div>
+          <div class="row"><div class="k">Lead ID</div><div class="v"><?= card.lead.LEAD_ID || "" ?></div></div>
+          <div class="row"><div class="k">Phone</div><div class="v"><?= card.lead.PHONE || "" ?></div></div>
+          <div class="row"><div class="k">Email</div><div class="v"><?= card.lead.EMAIL || "" ?></div></div>
+          <div class="row"><div class="k">Status</div><div class="v"><span class="pill"><?= card.lead.STATUS || "" ?></span></div></div>
+          <div class="row"><div class="k">Case Type</div><div class="v"><?= card.lead.CASE_TYPE || "" ?></div></div>
+          <div class="row"><div class="k">Source</div><div class="v"><?= card.lead.SOURCE || "" ?></div></div>
+          <div class="row"><div class="k">Assigned To</div><div class="v"><?= card.lead.ASSIGNED_TO || "" ?></div></div>
+          <div class="row"><div class="k">Description</div><div class="v"><?= card.lead.DESCRIPTION || "" ?></div></div>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:18px;">Linked Client</div>
+          <? if (card.client) { ?>
+            <div class="row"><div class="k">Client ID</div><div class="v"><?= card.client.CLIENT_ID || "" ?></div></div>
+            <div class="row"><div class="k">Name</div><div class="v"><?= card.client.FULL_NAME || "" ?></div></div>
+            <a class="btn" href="<?= webAppBase ?>?page=client&id=<?= card.client.CLIENT_ID ?>">Open Client</a>
+          <? } else { ?>
+            <div class="muted">No linked client yet.</div>
+          <? } ?>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:18px;">Related Matters</div>
+          <? if ((card.matters || []).length === 0) { ?>
+            <div class="muted">No matters.</div>
+          <? } else { ?>
+            <ul class="list">
+              <? for (var i=0; i<card.matters.length; i++) { var m = card.matters[i]; ?>
+                <li>
+                  <b><?= m.TITLE || "" ?></b>
+                  <div class="muted"><?= m.MATTER_ID || "" ?> · <?= m.CATEGORY || "" ?> · <?= m.STAGE || "" ?></div>
+                  <div><a href="<?= webAppBase ?>?page=matter&id=<?= m.MATTER_ID ?>">Open Matter</a></div>
+                </li>
+              <? } ?>
+            </ul>
+          <? } ?>
+        </div>
+      <? } ?>
+    </div>
+  </body>
+</html>

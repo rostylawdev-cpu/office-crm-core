@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: Arial, sans-serif; padding: 12px; }
+      .h { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+      .sub { color:#555; margin-bottom: 12px; }
+      .box { border:1px solid #ddd; border-radius:10px; padding:10px; margin:10px 0; }
+      .row { display:flex; justify-content:space-between; gap:10px; margin:4px 0; }
+      .k { color:#666; min-width: 110px; }
+      .v { font-weight:600; word-break: break-word; text-align:right; }
+      .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#f1f3f4; font-size:12px; }
+      .list { margin: 6px 0 0; padding-left: 16px; }
+      .muted { color:#777; font-size: 12px; }
+      button { cursor:pointer; border:0; border-radius:10px; padding:8px 10px; }
+      .btn { background:#1a73e8; color:#fff; }
+      .btn2 { background:#f1f3f4; }
+      .btn3 { background:#188038; color:#fff; }
+      .btn4 { background:#b06000; color:#fff; }
+      .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+      hr { border:0; border-top:1px solid #eee; margin: 10px 0; }
+      pre { background:#f7f7f7; padding:8px; border-radius:10px; overflow:auto; white-space:pre-wrap; }
+      .ok { color:#188038; font-weight:700; }
+      .warn { color:#b06000; font-weight:700; }
+    </style>
+  </head>
+  <body>
+    <? var ok = card && card.ok; ?>
+    <div class="h">Lead Card</div>
+    <div class="sub">
+      ID: <span class="pill"><?= leadId ?></span>
+      <? if (!ok) { ?>
+        <span class="pill">NOT FOUND</span>
+      <? } ?>
+    </div>
+
+    <? if (!ok) { ?>
+      <div class="box">
+        <b>Ошибка:</b> <?= card.error ?>
+      </div>
+    <? } else { ?>
+      <div class="box">
+        <div class="row"><div class="k">Name</div><div class="v"><?= card.lead.FULL_NAME || "" ?></div></div>
+        <div class="row"><div class="k">Phone</div><div class="v"><?= card.lead.PHONE || "" ?></div></div>
+        <div class="row"><div class="k">Email</div><div class="v"><?= card.lead.EMAIL || "" ?></div></div>
+        <div class="row"><div class="k">Source</div><div class="v"><?= card.lead.SOURCE || "" ?></div></div>
+        <div class="row"><div class="k">Campaign</div><div class="v"><?= card.lead.CAMPAIGN || "" ?></div></div>
+        <div class="row"><div class="k">Case Type</div><div class="v"><?= card.lead.CASE_TYPE || "" ?></div></div>
+        <div class="row"><div class="k">ID Type</div><div class="v"><?= card.lead.ID_TYPE || "" ?></div></div>
+        <div class="row"><div class="k">ID Number</div><div class="v"><?= card.lead.ID_NUMBER || "" ?></div></div>
+        <div class="row"><div class="k">Status</div><div class="v"><span class="pill"><?= card.lead.STATUS || "" ?></span></div></div>
+        <div class="row"><div class="k">Assigned To</div><div class="v"><?= card.lead.ASSIGNED_TO || "" ?></div></div>
+        <div class="row"><div class="k">Created</div><div class="v"><?= card.lead.CREATED_AT || "" ?></div></div>
+        <div class="row"><div class="k">Updated</div><div class="v"><?= card.lead.UPDATED_AT || "" ?></div></div>
+      </div>
+
+      <div class="box">
+        <div class="h" style="font-size:14px;margin:0 0 6px;">Description</div>
+        <div><?= card.lead.DESCRIPTION || "" ?></div>
+        <? if (card.lead.NOTES) { ?>
+          <hr/>
+          <div class="muted"><b>Notes:</b></div>
+          <div><?= card.lead.NOTES ?></div>
+        <? } ?>
+      </div>
+
+      <div class="box">
+        <div class="h" style="font-size:14px;margin:0 0 6px;">Linked Client</div>
+        <? if (card.client) { ?>
+          <div class="row"><div class="k">Status</div><div class="v"><span class="ok">Linked</span></div></div>
+          <div class="row"><div class="k">Client ID</div><div class="v"><?= card.client.CLIENT_ID || "" ?></div></div>
+          <div class="row"><div class="k">Name</div><div class="v"><?= card.client.FULL_NAME || "" ?></div></div>
+          <div class="row"><div class="k">Phone</div><div class="v"><?= card.client.PHONE || "" ?></div></div>
+          <div class="row"><div class="k">Email</div><div class="v"><?= card.client.EMAIL || "" ?></div></div>
+        <? } else { ?>
+          <div class="warn">Client not linked yet</div>
+        <? } ?>
+      </div>
+
+      <div class="box">
+        <div class="h" style="font-size:14px;margin:0 0 6px;">Related Matters (<?= (card.matters||[]).length ?>)</div>
+        <? if ((card.matters||[]).length === 0) { ?>
+          <div class="muted">По этому лиду дел пока нет.</div>
+        <? } else { ?>
+          <ul class="list">
+            <? for (var i=0; i<card.matters.length; i++) { var m = card.matters[i]; ?>
+              <li>
+                <b><?= m.TITLE || "" ?></b>
+                <div class="muted">
+                  <?= m.CATEGORY || "" ?> · <?= m.STAGE || "" ?> · <?= m.AUTHORITY || "" ?>
+                </div>
+                <div class="muted"><?= m.MATTER_ID || "" ?></div>
+              </li>
+            <? } ?>
+          </ul>
+        <? } ?>
+      </div>
+
+      <div class="box">
+        <div class="h" style="font-size:14px;margin:0 0 6px;">Recent Activities (<?= (card.activities||[]).length ?>)</div>
+        <? if ((card.activities||[]).length === 0) { ?>
+          <div class="muted">Активностей пока нет.</div>
+        <? } else { ?>
+          <ul class="list">
+            <? for (var j=0; j<card.activities.length; j++) { var a = card.activities[j]; ?>
+              <li>
+                <b><?= a.ACTION || "" ?></b> — <?= a.MESSAGE || "" ?>
+                <div class="muted"><?= a.TS || "" ?> · <?= a.ACTOR || "" ?></div>
+              </li>
+            <? } ?>
+          </ul>
+        <? } ?>
+      </div>
+
+      <div class="actions">
+        <button class="btn" onclick="refreshCard()">Refresh</button>
+
+        <? if (!card.client) { ?>
+          <button class="btn3" onclick="convertToClient()">Convert to Client</button>
+          <button class="btn4" onclick="convertToClientAndMatter()">Convert to Client + Matter</button>
+        <? } ?>
+
+        <button class="btn2" onclick="showRaw()">Raw JSON</button>
+      </div>
+
+      <div id="raw" style="display:none;">
+        <hr/>
+        <pre><?= JSON.stringify(card, null, 2) ?></pre>
+      </div>
+    <? } ?>
+
+    <script>
+      function refreshCard() {
+        google.script.run
+          .withSuccessHandler(function () {
+            google.script.host.close();
+          })
+          .crm_openLeadCardById("<?= leadId ?>");
+      }
+
+      function convertToClient() {
+        if (!confirm("Convert this lead to Client?")) return;
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            alert("Lead converted to Client: " + (res.clientId || ""));
+            google.script.host.close();
+            google.script.run.crm_openLeadCardById("<?= leadId ?>");
+          })
+          .withFailureHandler(function (err) {
+            alert("Ошибка: " + (err && err.message ? err.message : err));
+          })
+          .crm_uiConvertLeadToClient("<?= leadId ?>");
+      }
+
+      function convertToClientAndMatter() {
+        if (!confirm("Convert this lead to Client + Matter?")) return;
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            alert("Lead converted to Client + Matter: " + (res.matterId || ""));
+            google.script.host.close();
+            google.script.run.crm_openLeadCardById("<?= leadId ?>");
+          })
+          .withFailureHandler(function (err) {
+            alert("Ошибка: " + (err && err.message ? err.message : err));
+          })
+          .crm_uiConvertLeadToClientAndMatter("<?= leadId ?>");
+      }
+
+      function showRaw() {
+        const el = document.getElementById("raw");
+        el.style.display = (el.style.display === "none") ? "block" : "none";
+      }
+    </script>
+  </body>
+</html>

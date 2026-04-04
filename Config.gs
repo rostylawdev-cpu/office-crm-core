@@ -13,6 +13,12 @@ const CFG = {
     TASKS: "Tasks",
   },
 
+    DRIVE: {
+    // папка хранения CRM-документов
+    // если пусто — файлы будут падать в корень Drive владельца скрипта
+    ROOT_FOLDER_ID: "1lscoZRCKKaTRgivFIPduZHWLcYXYvyYZ"
+  },
+
   HEADERS: {
     LEADS: [
       "LEAD_ID",
@@ -29,6 +35,9 @@ const CFG = {
       "ASSIGNED_TO",
       "CLIENT_ID",
       "NOTES",
+      "ID_TYPE",
+      "ID_NUMBER",
+      "ADDRESS",
     ],
 
     CLIENTS: [
@@ -49,6 +58,8 @@ const CFG = {
       "PAYMENT_DUE",
       "PAYMENT_PAID",
       "PAYMENT_NOTE",
+      "ID_TYPE",
+      "ADDRESS",
     ],
 
     MATTERS: [

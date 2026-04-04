@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <style>
+      body { margin:0; font-family:Arial,sans-serif; background:#f6f8fc; color:#1f2937; }
+      .wrap { max-width:520px; margin:32px auto; padding:0 20px; }
+      .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:24px; }
+      h1 { font-size:22px; font-weight:700; margin:0 0 20px; }
+      .form-group { margin-bottom:14px; }
+      label { display:block; font-size:13px; font-weight:600; color:#6b7280; margin-bottom:4px; }
+      input, select { width:100%; padding:9px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; box-sizing:border-box; }
+      input:focus, select:focus { outline:none; border-color:#1a73e8; }
+      button[type="submit"] { background:#1a73e8; color:white; padding:10px 20px; border:none; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; width:100%; margin-top:4px; }
+      button[type="submit"]:hover:not(:disabled) { background:#1557b0; }
+      button[type="submit"]:disabled { background:#9ca3af; cursor:not-allowed; }
+      .status { margin-top:14px; padding:10px 14px; border-radius:10px; font-size:14px; display:none; }
+      .status.success { background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; display:block; }
+      .status.error { background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; display:block; }
+      .btn { display:inline-block; text-decoration:none; padding:8px 14px; border-radius:10px; background:#1a73e8; color:white; font-weight:600; font-size:13px; margin-top:8px; }
+      .home-link { display:block; margin-bottom:14px; font-size:13px; color:#1a73e8; text-decoration:none; font-weight:600; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <a class="home-link" href="<?= webAppBase ?>?page=home">← Home</a>
+      <div class="card">
+        <h1>New Lead</h1>
+        <form id="newLeadForm">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input name="FULL_NAME" required>
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input name="PHONE">
+          </div>
+          <div class="form-group">
+            <label>Source</label>
+            <input name="SOURCE">
+          </div>
+          <div class="form-group">
+            <label>Case Type</label>
+            <input name="CASE_TYPE">
+          </div>
+          <div class="form-group">
+            <label>ID Type</label>
+            <select name="ID_TYPE">
+              <option value="">-- Select ID Type --</option>
+              <option value="TZ">TZ</option>
+              <option value="Passport">Passport</option>
+              <option value="Darkon">Darkon</option>
+              <option value="Teudat Zehut">Teudat Zehut</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>ID Number</label>
+            <input name="ID_NUMBER">
+          </div>
+          <div class="form-group">
+            <label>Address</label>
+            <input name="ADDRESS" placeholder="Street, city">
+          </div>
+          <div class="form-group">
+            <button type="submit" id="newLeadSubmit">Create Lead</button>
+          </div>
+        </form>
+        <div id="newLeadStatus" class="status"></div>
+      </div>
+    </div>
+
+    <script>
+      const WEB_APP_BASE = "<?= webAppBase ?>";
+      const SOURCE_ID = "<?= entityId ?>";
+
+      document.getElementById("newLeadForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const btn = document.getElementById("newLeadSubmit");
+        const statusEl = document.getElementById("newLeadStatus");
+        btn.disabled = true;
+        btn.textContent = "Creating lead...";
+        statusEl.className = "status";
+        statusEl.innerHTML = "";
+
+        const data = {
+          FULL_NAME: e.target.FULL_NAME.value.trim(),
+          PHONE: e.target.PHONE.value.trim(),
+          SOURCE: e.target.SOURCE.value.trim(),
+          CASE_TYPE: e.target.CASE_TYPE.value.trim(),
+          ID_TYPE: e.target.ID_TYPE.value.trim(),
+          ID_NUMBER: e.target.ID_NUMBER.value.trim(),
+          ADDRESS: e.target.ADDRESS.value.trim()
+        };
+
+        google.script.run
+          .withSuccessHandler(function (lead) {
+            btn.disabled = false;
+            btn.textContent = "Create Lead";
+            statusEl.className = "status success";
+            statusEl.innerHTML = 'Lead created! <a class="btn" href="' + WEB_APP_BASE + '?page=lead&id=' + encodeURIComponent(lead.id) + '">Open Lead</a>';
+          })
+          .withFailureHandler(function (err) {
+            btn.disabled = false;
+            btn.textContent = "Create Lead";
+            statusEl.className = "status error";
+            statusEl.textContent = "Error: " + (err.message || err);
+          })
+          .crm_webCreateLead(data);
+      });
+    </script>
+  </body>
+</html>

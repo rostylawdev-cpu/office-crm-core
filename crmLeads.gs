@@ -31,6 +31,9 @@ function crm_addLead(input) {
     ASSIGNED_TO: (input?.assignedTo ?? getActiveUserEmail_()).trim(),
     CLIENT_ID: (input?.clientId ?? "").trim(),
     NOTES: (input?.notes ?? "").trim(),
+    ID_TYPE: (input?.idType ?? "").trim(),
+    ID_NUMBER: (input?.idNumber ?? "").trim(),
+    ADDRESS: (input?.address ?? "").trim(),
   };
 
   const row = appendRowByHeaders_(sh, c.HEADERS.LEADS, rowObj);

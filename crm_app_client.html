@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body { margin:0; font-family:Arial,sans-serif; background:#f6f8fc; color:#1f2937; }
+      .topbar { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; }
+      .brand { font-size:22px; font-weight:700; }
+      .nav { display:flex; gap:10px; }
+      .nav a { text-decoration:none; color:#1a73e8; font-weight:600; }
+      .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+      .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:16px; margin-bottom:14px; }
+      .row { display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
+      .k { color:#6b7280; min-width:140px; }
+      .v { font-weight:600; word-break:break-word; }
+      .title { font-size:24px; font-weight:700; margin-bottom:8px; }
+      .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; font-size:12px; }
+      .status-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; color:#fff; margin-left:6px; }
+      .status-pill.DRAFT { background:#6b7280; }
+      .status-pill.PENDING { background:#047857; }
+      .status-pill.SIGNED { background:#0c4a6e; }
+      .status-pill.UNKNOWN { background:#9ca3af; }
+      .list { padding-left:18px; }
+      .muted { color:#6b7280; font-size:12px; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">CRM Client</div>
+      <div class="nav">
+        <a href="<?= webAppBase ?>?page=home">Home</a>
+        <a href="<?= webAppBase ?>?page=search">Search</a>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <a style="display:inline-block; text-decoration:none; padding:10px 14px; border-radius:10px; background:#1a73e8; color:white; font-weight:600; margin-bottom:10px;" href="<?= webAppBase ?>?page=new_matter&id=<?= entityId ?>">New Matter for Client</a>
+      <a style="display:inline-block; text-decoration:none; padding:10px 14px; border-radius:10px; background:#f59e0b; color:white; font-weight:600; margin-bottom:10px; margin-left:8px;" href="<?= webAppBase ?>?page=edit_client&id=<?= entityId ?>">Edit Client</a>
+    </div>
+
+    <div class="wrap">
+      <? if (!card || !card.ok) { ?>
+        <div class="card">Client not found: <?= entityId ?></div>
+      <? } else { ?>
+        <div class="card">
+          <div class="title"><?= card.client.FULL_NAME || "" ?></div>
+          <div class="row"><div class="k">Client ID</div><div class="v"><?= card.client.CLIENT_ID || "" ?></div></div>
+          <div class="row"><div class="k">Phone</div><div class="v"><?= card.client.PHONE || "" ?></div></div>
+          <div class="row"><div class="k">Email</div><div class="v"><?= card.client.EMAIL || "" ?></div></div>
+          <div class="row"><div class="k">Status</div><div class="v"><span class="pill"><?= card.client.STATUS || "" ?></span></div></div>
+          <div class="row"><div class="k">Owner</div><div class="v"><?= card.client.OWNER || "" ?></div></div>
+          <div class="row"><div class="k">Source</div><div class="v"><?= card.client.SOURCE || "" ?></div></div>
+          <? if (card.client.FOLDER_URL) { ?>
+            <div style="margin-top:10px;"><a href="<?= card.client.FOLDER_URL ?>" target="_blank" style="text-decoration:none; padding:8px 12px; border-radius:8px; background:#1a73e8; color:white; font-weight:600; display:inline-block;">📁 Open Folder</a></div>
+          <? } ?>
+          <div style="margin-top:12px;">
+            <button style="margin-right:8px;padding:8px 12px;border-radius:10px;border:0;background:#1a73e8;color:#fff;" onclick="generateForFirstMatter()">Generate Agreement+POA on first matter</button>
+          </div>
+          <div id="clientSignStatus" class="muted" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:18px;">Open Tasks</div>
+          <? var addTaskMatterId = (card.matters && card.matters.length > 0) ? card.matters[0].MATTER_ID : ""; ?>
+          <? if (addTaskMatterId) { ?>
+            <div><a href="<?= webAppBase ?>?page=new_task&matterId=<?= addTaskMatterId ?>">+ Add Task</a></div>
+          <? } else { ?>
+            <div class="muted">No matter selected. Create a matter first to add tasks.</div>
+          <? } ?>
+          <? if ((card.tasksOpen || []).length === 0) { ?>
+            <div class="muted">No open tasks. Tasks with status other than OPEN may exist below.</div>
+          <? } else { ?>
+            <ul class="list">
+              <? for (var i=0; i<card.tasksOpen.length; i++) { var t = card.tasksOpen[i]; ?>
+                <li>
+                  <b><?= t.TITLE || "" ?></b>
+                  <div class="muted"><?= t.TYPE || "" ?> · <?= t.PRIORITY || "" ?> · due: <?= t.DUE_DATE || "" ?></div>
+                </li>
+              <? } ?>
+            </ul>
+          <? } ?>
+
+          <? if ((card.tasksOther || []).length > 0) { ?>
+            <div style="margin-top:16px; font-weight:700;">Other Tasks</div>
+            <ul class="list">
+              <? for (var j=0; j<card.tasksOther.length; j++) { var t2 = card.tasksOther[j]; ?>
+                <li>
+                  <b><?= t2.TITLE || "" ?></b>
+                  <div class="muted"><?= t2.STATUS || "" ?> · <?= t2.TYPE || "" ?> · <?= t2.PRIORITY || "" ?> · due: <?= t2.DUE_DATE || "" ?></div>
+                </li>
+              <? } ?>
+            </ul>
+          <? } ?>
+
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:18px;">Matters</div>
+          <? if ((card.matters || []).length === 0) { ?>
+            <div class="muted">No matters.</div>
+          <? } else { ?>
+            <ul class="list">
+              <? for (var i=0; i<card.matters.length; i++) { var m = card.matters[i]; ?>
+                <li>
+                  <b><?= m.TITLE || "" ?></b>
+                  <div class="muted"><?= m.MATTER_ID || "" ?> · <?= m.CATEGORY || "" ?> · <?= m.STAGE || "" ?></div>
+                  <div><a href="<?= webAppBase ?>?page=matter&id=<?= m.MATTER_ID ?>">Open Matter</a></div>
+                </li>
+              <? } ?>
+            </ul>
+          <? } ?>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:18px;">Documents</div>
+          <? if ((card.documents || []).length === 0) { ?>
+            <div class="muted">No documents.</div>
+          <? } else { ?>
+            <ul class="list">
+              <? for (var d=0; d<card.documents.length; d++) { var doc = card.documents[d]; ?>
+                <li>
+                  <b><?= doc.TITLE || "" ?></b>
+                  <div class="muted"><?= doc.TYPE || "" ?>
+                    <span class="status-pill <?= (doc.STATUS || "UNKNOWN").toUpperCase() ?>"><?= doc.STATUS ? doc.STATUS.toUpperCase() : "UNKNOWN" ?></span>
+                  </div>
+                  <? if (doc.DOC_URL) { ?><div><a href="<?= doc.DOC_URL ?>" target="_blank">Open DOC</a></div><? } ?>
+                  <? if (doc.PDF_URL) { ?><div><a href="<?= doc.PDF_URL ?>" target="_blank">Open PDF</a></div><? } ?>
+                </li>
+              <? } ?>
+            </ul>
+          <? } ?>
+        </div>
+      <? } ?>
+    </div>
+
+    <? var firstMatterId = ""; if (card.matters && card.matters.length > 0) { firstMatterId = card.matters[0].MATTER_ID; } ?>
+    <script>
+      const firstMatterId = "<?= firstMatterId ?>";
+      function setClientSignStatus(text, klass) {
+        const el = document.getElementById('clientSignStatus');
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'muted ' + (klass || '');
+      }
+
+      function generateForFirstMatter() {
+        if (!firstMatterId) {
+          setClientSignStatus('Create a matter first before generating documents.', 'err');
+          return;
+        }
+
+        setClientSignStatus('Generating documents for matter: ' + firstMatterId, '');
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (!res || !res.ok) {
+              setClientSignStatus('Error: ' + (res && res.error ? res.error : 'unknown'), 'err');
+              return;
+            }
+            setClientSignStatus('Generated docs for matter: ' + res.matterId, 'ok');
+          })
+          .withFailureHandler(function(err) {
+            setClientSignStatus('Error: ' + (err && err.message ? err.message : String(err)), 'err');
+          })
+          .crm_uiGenerateAgreementPoa(firstMatterId);
+      }
+    </script>
+  </body>
+</html>

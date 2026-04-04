@@ -1,0 +1,274 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body { margin:0; font-family:Arial,sans-serif; background:#f6f8fc; color:#1f2937; }
+      .topbar { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; }
+      .brand { font-size:22px; font-weight:700; }
+      .nav { display:flex; gap:10px; }
+      .nav a { text-decoration:none; color:#1a73e8; font-weight:600; }
+      .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+      .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:16px; margin-bottom:14px; }
+      .row { display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
+      .k { color:#6b7280; min-width:140px; }
+      .v { font-weight:600; word-break:break-word; }
+      .title { font-size:24px; font-weight:700; margin-bottom:8px; }
+      .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; font-size:12px; }
+      .status-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; color:#fff; margin-left:6px; }
+      .status-pill.DRAFT { background:#6b7280; }
+      .status-pill.PENDING { background:#047857; }
+      .status-pill.SIGNED { background:#0c4a6e; }
+      .status-pill.UNKNOWN { background:#9ca3af; }
+      .sign-link-actions button { margin-top:4px; margin-right:5px; padding:4px 8px; border-radius: 8px; border: 0; background:#1a73e8; color:#fff; font-size:12px; cursor:pointer; }
+      .list { padding-left:18px; }
+      .muted { color:#6b7280; font-size:12px; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">CRM Matter</div>
+      <div class="nav">
+        <a href="<?= webAppBase ?>?page=home">Home</a>
+        <a href="<?= webAppBase ?>?page=search">Search</a>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <? if (!card || !card.ok) { ?>
+        <div class="card">Matter not found: <?= entityId ?></div>
+      <? } else { ?>
+        <div class="card">
+          <div class="title"><?= card.matter.TITLE || "" ?></div>
+          <div class="row"><div class="k">Matter ID</div><div class="v"><?= card.matter.MATTER_ID || "" ?></div></div>
+          <div class="row"><div class="k">Category</div><div class="v"><?= card.matter.CATEGORY || "" ?></div></div>
+          <div class="row"><div class="k">Stage</div><div class="v"><span class="pill"><?= card.matter.STAGE || "" ?></span></div></div>
+          <div class="row"><div class="k">Authority</div><div class="v"><?= card.matter.AUTHORITY || "" ?></div></div>
+          <div class="row"><div class="k">Owner</div><div class="v"><?= card.matter.OWNER || "" ?></div></div>
+          <? if (card.matter.FOLDER_URL) { ?>
+            <div style="margin-top:10px;"><a href="<?= card.matter.FOLDER_URL ?>" target="_blank" style="text-decoration:none; padding:8px 12px; border-radius:8px; background:#1a73e8; color:white; font-weight:600; display:inline-block;">📁 Open Folder</a></div>
+          <? } ?>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:18px;">Client</div>
+          <div class="row"><div class="k">Name</div><div class="v"><?= card.client?.FULL_NAME || "" ?></div></div>
+          <div class="row"><div class="k">Phone</div><div class="v"><?= card.client?.PHONE || "" ?></div></div>
+          <? if (card.client && card.client.CLIENT_ID) { ?>
+            <div><a href="<?= webAppBase ?>?page=client&id=<?= card.client.CLIENT_ID ?>">Open Client</a></div>
+          <? } ?>
+          <div style="margin-top:12px;">
+            <button style="margin-right:8px;padding:8px 12px;border-radius:10px;border:0;background:#1a73e8;color:#fff;" onclick="generateSignDocs()">Generate Agreement + POA</button>
+            <button style="padding:8px 12px;border-radius:10px;border:0;background:#188038;color:#fff;" onclick="createSignLinks()">Create Sign Links</button>
+          </div>
+          <div id="signFlowStatus" class="muted" style="margin-top:8px;"></div>
+          <div id="generatedDocActions" style="margin-top:8px;display:none;"></div>
+        </div>
+
+        <div class="card" id="signLinksCard" style="display:none;">
+          <div class="title" style="font-size:18px;">Sign Links</div>
+          <div id="signLinksList" class="muted">No sign links yet. Click "Create Sign Links".</div>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:18px;">Open Tasks</div>
+          <div><a href="<?= webAppBase ?>?page=new_task&matterId=<?= entityId ?>">+ Add Task</a></div>
+          <? if ((card.tasksOpen || []).length === 0) { ?>
+            <div class="muted">No open tasks. Other statuses are shown below.</div>
+          <? } else { ?>
+            <ul class="list">
+              <? for (var i=0; i<card.tasksOpen.length; i++) { var t = card.tasksOpen[i]; ?>
+                <li>
+                  <b><?= t.TITLE || "" ?></b>
+                  <div class="muted"><?= t.TYPE || "" ?> · <?= t.PRIORITY || "" ?> · due: <?= t.DUE_DATE || "" ?></div>
+                </li>
+              <? } ?>
+            </ul>
+          <? } ?>
+
+          <? if ((card.tasksOther || []).length > 0) { ?>
+            <div style="margin-top:16px; font-weight:700;">Other Tasks</div>
+            <ul class="list">
+              <? for (var i=0; i<card.tasksOther.length; i++) { var t = card.tasksOther[i]; ?>
+                <li>
+                  <b><?= t.TITLE || "" ?></b>
+                  <div class="muted"><?= t.STATUS || "" ?> · <?= t.TYPE || "" ?> · <?= t.PRIORITY || "" ?> · due: <?= t.DUE_DATE || "" ?></div>
+                </li>
+              <? } ?>
+            </ul>
+          <? } ?>
+        </div>
+
+        <div class="card">
+          <div class="title" style="font-size:18px;">Documents</div>
+          <div><a href="<?= webAppBase ?>?page=upload_doc&matterId=<?= entityId ?>">+ Upload Document</a></div>
+          <? if ((card.documents || []).length === 0) { ?>
+            <div class="muted">No documents.</div>
+          <? } else { ?>
+            <ul class="list">
+              <? for (var d=0; d<card.documents.length; d++) { var doc = card.documents[d]; ?>
+                <li>
+                  <b><?= doc.TITLE || "" ?></b>
+                  <div class="muted"><?= doc.TYPE || "" ?>
+                    <span class="status-pill <?= (doc.STATUS || "UNKNOWN").toUpperCase() ?>"><?= doc.STATUS ? doc.STATUS.toUpperCase() : "UNKNOWN" ?></span>
+                  </div>
+                  <? if (doc.DOC_URL) { ?><div><a href="<?= doc.DOC_URL ?>" target="_blank">Open DOC</a></div><? } ?>
+                  <? if (doc.PDF_URL) { ?><div><a href="<?= doc.PDF_URL ?>" target="_blank">Open PDF</a></div><? } ?>
+                </li>
+              <? } ?>
+            </ul>
+          <? } ?>
+        </div>
+      <? } ?>
+    </div>
+
+    <script>
+      function setSignFlowStatus(text, klass) {
+        const el = document.getElementById('signFlowStatus');
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'muted ' + (klass || '');
+      }
+
+      function generateSignDocs() {
+        setSignFlowStatus('Generating agreement + POA...', '');
+        document.getElementById('generatedDocActions').style.display = 'none';
+        document.getElementById('generatedDocActions').innerHTML = '';
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (!res || !res.ok) {
+              setSignFlowStatus('Error: ' + (res && res.error ? res.error : 'unknown'), 'err');
+              return;
+            }
+            setSignFlowStatus('Agreement and POA generated successfully. Documents were added to CRM.', 'ok');
+
+            var actions = '<div style="margin-top:8px;"><b>Open generated documents:</b><div style="margin-top:6px;">';
+            if (res.agreement && res.agreement.pdfUrl) {
+              actions += '<a href="' + res.agreement.pdfUrl + '" target="_blank" style="margin-right:8px;">Open Agreement PDF</a>';
+            }
+            if (res.poa && res.poa.pdfUrl) {
+              actions += '<a href="' + res.poa.pdfUrl + '" target="_blank" style="margin-right:8px;">Open POA PDF</a>';
+            }
+            if (res.agreement && res.agreement.docUrl) {
+              actions += '<a href="' + res.agreement.docUrl + '" target="_blank" style="margin-right:8px;">Open Agreement Doc</a>';
+            }
+            if (res.poa && res.poa.docUrl) {
+              actions += '<a href="' + res.poa.docUrl + '" target="_blank" style="margin-right:8px;">Open POA Doc</a>';
+            }
+            actions += '</div></div>';
+
+            var block = document.getElementById('generatedDocActions');
+            block.innerHTML = actions;
+            block.style.display = 'block';
+          })
+          .withFailureHandler(function(err) {
+            setSignFlowStatus('Error: ' + (err && err.message ? err.message : String(err)), 'err');
+          })
+          .crm_uiGenerateAgreementPoa('<?= entityId ?>');
+      }
+
+      function sendWhatsApp(url, status, signedLabel, prebuiltWaUrl) {
+        if (status === 'SIGNED') {
+          var confirmMsg = 'This document is already signed' + (signedLabel ? ' (signed: ' + signedLabel + ')' : '') + '. Send the signing link again?';
+          if (!confirm(confirmMsg)) return;
+        }
+        var waUrl = prebuiltWaUrl || ('https://wa.me/?text=' + encodeURIComponent('Please sign the document: ' + url));
+        window.open(waUrl, '_blank');
+      }
+
+      function setSignLinksList(links) {
+        const card = document.getElementById('signLinksCard');
+        const list = document.getElementById('signLinksList');
+        if (!card || !list) return;
+
+        if (!links || links.length === 0) {
+          list.innerHTML = '<span class="muted">No sign links found.</span>';
+          card.style.display = 'block';
+          return;
+        }
+
+        card.style.display = 'block';
+
+        let html = '<ul class="list">';
+        links.forEach(function(item) {
+          if (!item.ok) {
+            html += '<li><b>Document</b> <span class="muted">failed: ' + (item.error || 'unknown error') + '</span></li>';
+            return;
+          }
+          const safeUrl = String(item.signUrl || '');
+          const label = item.docType || item.docTitle || 'Agreement/POA';
+          const title = item.docTitle ? (item.docTitle + ' Sign Link') : (label + ' Sign Link');
+          const status = (item.docStatus || 'UNKNOWN').toUpperCase();
+          html += '<li>';
+          html += '<b>' + title + '</b> <span class="status-pill ' + status + '">' + status + '</span><br>';
+          html += '<div class="sign-link-actions">';
+          html += '<button type="button" onclick="window.open(\'' + safeUrl + '\', \'_blank\')">Open Sign Link</button>';
+          html += '<button type="button" onclick="copyToClipboard(\'' + safeUrl + '\')">Copy Sign Link</button>';
+          var safeSignedAt = String(item.signedAt || item.SIGNED_AT || '').replace(/'/g, '');
+          var safeWaUrl = item.whatsappUrl ? String(item.whatsappUrl).replace(/'/g, '%27') : '';
+          html += '<button type="button" onclick="sendWhatsApp(\'' + safeUrl + '\', \'' + status + '\', \'' + safeSignedAt + '\'' + (safeWaUrl ? ', \'' + safeWaUrl + '\'' : '') + ')">WhatsApp</button>';
+          html += '</div>';
+          html += '</li>';
+        });
+        html += '</ul>';
+        list.innerHTML = html;
+      }
+
+      function copyToClipboard(text) {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {
+          alert('Clipboard API unsupported - please copy manually:\n' + text);
+          return;
+        }
+        navigator.clipboard.writeText(text).then(function() {
+          setSignFlowStatus('Copied to clipboard', 'ok');
+        }).catch(function(err) {
+          setSignFlowStatus('Clipboard copy failed: ' + err, 'err');
+        });
+      }
+
+      function createSignLinks() {
+        setSignFlowStatus('Creating sign links...', '');
+        document.getElementById('signLinksCard').style.display = 'block';
+        document.getElementById('signLinksList').innerHTML = '<span class="muted">Creating sign links...</span>';
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (!res || !res.ok) {
+              setSignFlowStatus('Error: ' + (res && res.error ? res.error : 'unknown'), 'err');
+              setSignLinksList([]);
+              return;
+            }
+
+            if (!res.links || res.links.length === 0) {
+              setSignFlowStatus('No sign documents found. Generate Agreement + POA first.', 'err');
+              document.getElementById('signLinksCard').style.display = 'none';
+              document.getElementById('signLinksList').innerHTML = '';
+              return;
+            }
+
+            var anyFailed = res.links.some(function(l) { return !l.ok; });
+            if (anyFailed) {
+              setSignFlowStatus('Some signing links failed to generate. Please retry.', 'err');
+              setSignLinksList(res.links);
+              return;
+            }
+
+            var isOnboardingPkg = res.links.length === 1 && res.links[0].docType === 'ONBOARDING_PACKAGE';
+            if (isOnboardingPkg) {
+              setSignFlowStatus('Onboarding sign link created (Agreement + POA)', 'ok');
+            } else {
+              setSignFlowStatus('Sign links created for ' + res.links.length + ' docs.', 'ok');
+            }
+            setSignLinksList(res.links);
+          })
+          .withFailureHandler(function(err) {
+            setSignFlowStatus('Error: ' + (err && err.message ? err.message : String(err)), 'err');
+            setSignLinksList([]);
+          })
+          .crm_uiCreateSignLinksForMatter('<?= entityId ?>');
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,296 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f6f8fc;
+        color: #202124;
+      }
+
+      .wrap {
+        padding: 16px;
+      }
+
+      .top {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      input[type="text"] {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid #d0d7de;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      .btn {
+        background: #1a73e8;
+        color: white;
+      }
+
+      .btn2 {
+        background: #f1f3f4;
+      }
+
+      .hint {
+        color: #5f6368;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+
+      .section {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+
+      .title {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .empty {
+        color: #777;
+        font-size: 13px;
+      }
+
+      .item {
+        border-top: 1px solid #eef1f5;
+        padding: 10px 0;
+      }
+
+      .item:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .main {
+        flex: 1;
+      }
+
+      .meta {
+        color: #6b7280;
+        font-size: 12px;
+        margin-top: 4px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eef2ff;
+        font-size: 12px;
+      }
+
+      .loading {
+        color: #666;
+        font-size: 13px;
+        padding: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <input
+          id="q"
+          type="text"
+          placeholder="Search by phone, name, lead/client/matter ID..."
+          onkeydown="if(event.key==='Enter'){runSearch();}"
+        />
+        <button class="btn" onclick="runSearch()">Search</button>
+        <button class="btn2" onclick="clearSearch()">Clear</button>
+      </div>
+
+      <div class="hint">
+        Примеры: <code>050-7777777</code>, <code>Test Lead One</code>, <code>CL_...</code>, <code>MAT_...</code>, <code>LEAD_...</code>
+      </div>
+
+      <div id="results">
+        <div class="loading">Введите запрос для поиска.</div>
+      </div>
+    </div>
+
+    <script>
+      function esc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function clearSearch() {
+        document.getElementById("q").value = "";
+        document.getElementById("results").innerHTML =
+          '<div class="loading">Введите запрос для поиска.</div>';
+      }
+
+      function runSearch() {
+        const q = document.getElementById("q").value.trim();
+        if (!q) {
+          clearSearch();
+          return;
+        }
+
+        document.getElementById("results").innerHTML =
+          '<div class="loading">Searching...</div>';
+
+        google.script.run
+          .withSuccessHandler(renderResults)
+          .withFailureHandler(function (err) {
+            document.getElementById("results").innerHTML =
+              '<div class="section"><div class="title">Ошибка</div><div class="empty">' +
+              esc(err && err.message ? err.message : err) +
+              "</div></div>";
+          })
+          .crm_runSearch(q);
+      }
+
+      function renderResults(res) {
+        const leads = res.leads || [];
+        const clients = res.clients || [];
+        const matters = res.matters || [];
+
+        const html = `
+          ${renderLeadSection(leads)}
+          ${renderClientSection(clients)}
+          ${renderMatterSection(matters)}
+        `;
+
+        document.getElementById("results").innerHTML = html;
+      }
+
+      function renderLeadSection(items) {
+        return `
+          <div class="section">
+            <div class="title">Leads <span class="pill">${items.length}</span></div>
+            ${items.length ? items.map(renderLeadItem).join("") : '<div class="empty">Ничего не найдено.</div>'}
+          </div>
+        `;
+      }
+
+      function renderClientSection(items) {
+        return `
+          <div class="section">
+            <div class="title">Clients <span class="pill">${items.length}</span></div>
+            ${items.length ? items.map(renderClientItem).join("") : '<div class="empty">Ничего не найдено.</div>'}
+          </div>
+        `;
+      }
+
+      function renderMatterSection(items) {
+        return `
+          <div class="section">
+            <div class="title">Matters <span class="pill">${items.length}</span></div>
+            ${items.length ? items.map(renderMatterItem).join("") : '<div class="empty">Ничего не найдено.</div>'}
+          </div>
+        `;
+      }
+
+      function renderLeadItem(x) {
+        return `
+          <div class="item">
+            <div class="row">
+              <div class="main">
+                <div><b>${esc(x.FULL_NAME || "")}</b></div>
+                <div class="meta">
+                  ${esc(x.LEAD_ID || "")} · ${esc(x.PHONE || "")} · ${esc(x.EMAIL || "")}
+                </div>
+                <div class="meta">
+                  ${esc(x.CASE_TYPE || "")} · ${esc(x.STATUS || "")} · ${esc(x.SOURCE || "")}
+                </div>
+              </div>
+              <div class="actions">
+                <button class="btn2" onclick="openLead('${esc(x.LEAD_ID || "")}')">Open Lead</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderClientItem(x) {
+        return `
+          <div class="item">
+            <div class="row">
+              <div class="main">
+                <div><b>${esc(x.FULL_NAME || "")}</b></div>
+                <div class="meta">
+                  ${esc(x.CLIENT_ID || "")} · ${esc(x.PHONE || "")} · ${esc(x.EMAIL || "")}
+                </div>
+                <div class="meta">
+                  ${esc(x.STATUS || "")} · ${esc(x.OWNER || "")} · ${esc(x.SOURCE || "")}
+                </div>
+              </div>
+              <div class="actions">
+                <button class="btn2" onclick="openClient('${esc(x.CLIENT_ID || "")}')">Open Client</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderMatterItem(x) {
+        return `
+          <div class="item">
+            <div class="row">
+              <div class="main">
+                <div><b>${esc(x.TITLE || "")}</b></div>
+                <div class="meta">
+                  ${esc(x.MATTER_ID || "")} · ${esc(x.CATEGORY || "")} · ${esc(x.STAGE || "")}
+                </div>
+                <div class="meta">
+                  ${esc(x.AUTHORITY || "")} · client: ${esc(x.CLIENT_ID || "")}
+                </div>
+              </div>
+              <div class="actions">
+                <button class="btn2" onclick="openMatter('${esc(x.MATTER_ID || "")}')">Open Matter</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function openLead(id) {
+        google.script.run.crm_openLeadCardById(id);
+      }
+
+      function openClient(id) {
+        google.script.run.crm_openClientCardById(id);
+      }
+
+      function openMatter(id) {
+        google.script.run.crm_openMatterCardById(id);
+      }
+    </script>
+  </body>
+</html>

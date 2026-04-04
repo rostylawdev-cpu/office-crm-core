@@ -1,0 +1,267 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; }
+    .wrap { max-width: 840px; margin: 0 auto; }
+    .row { margin: 10px 0; }
+    #pad { border: 1px solid #ccc; width: 100%; height: 220px; touch-action: none; cursor: crosshair; }
+    #pad.locked { cursor: default; opacity: 0.6; }
+    button { padding: 10px 14px; margin-right: 8px; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .muted { color: #666; font-size: 13px; }
+    .err { color: #b00020; }
+    .ok { color: #0a7a0a; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h3>Sign Document</h3>
+    <div id="info" class="muted">Loading document...</div>
+
+    <div class="row">
+      <canvas id="pad"></canvas>
+    </div>
+
+    <div class="row">
+      <button id="clearBtn" type="button" disabled>Clear</button>
+      <button id="sendBtn" type="button" disabled>Submit Signature</button>
+    </div>
+
+    <div id="msg" class="row"></div>
+  </div>
+
+  <script>
+    const TOKEN = "<?= token ?>";
+
+    var submitting = false;
+    var terminated = false;
+    var hasDrawn = false;
+
+    // ─── DOM refs ───────────────────────────────────────────────────────────
+    const canvas  = document.getElementById('pad');
+    const ctx     = canvas.getContext('2d');
+    const sendBtn = document.getElementById('sendBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const infoEl  = document.getElementById('info');
+    const msgEl   = document.getElementById('msg');
+
+    // ─── UI helpers ─────────────────────────────────────────────────────────
+    function setInfo(text, cls) {
+      infoEl.className = cls || 'muted';
+      infoEl.textContent = text;
+    }
+
+    function setMessage(text, cls) {
+      msgEl.className = 'row ' + (cls || '');
+      msgEl.textContent = text;
+    }
+
+    function setButtons(enabled) {
+      sendBtn.disabled  = !enabled;
+      clearBtn.disabled = !enabled;
+    }
+
+    // ─── Terminal state ──────────────────────────────────────────────────────
+    // Once terminated, nothing on the page can fire again.
+    function terminate(msgText, msgCls) {
+      terminated = true;
+      submitting = false;
+      setButtons(false);
+      lockCanvas();
+      setMessage(msgText, msgCls || 'ok');
+    }
+
+    // ─── Canvas ──────────────────────────────────────────────────────────────
+    function lockCanvas() {
+      canvas.classList.add('locked');
+    }
+
+    function resizeCanvas() {
+      const dpr  = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      // Preserve drawing after resize by saving/restoring image data
+      const imgData = hasDrawn ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+      canvas.width  = Math.floor(rect.width  * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.lineWidth = 2;
+      ctx.lineCap   = 'round';
+      if (imgData) {
+        ctx.putImageData(imgData, 0, 0);
+      }
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function isCanvasBlank() {
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      for (var i = 3; i < data.length; i += 4) {
+        if (data[i] !== 0) return false;
+      }
+      return true;
+    }
+
+    // ─── Drawing ─────────────────────────────────────────────────────────────
+    var drawing   = false;
+    var lastPoint = null;
+
+    function getPoint(e) {
+      const rect = canvas.getBoundingClientRect();
+      const t = (e.touches && e.touches[0]) ? e.touches[0] : e;
+      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    }
+
+    function startDraw(e) {
+      if (terminated || submitting) return;
+      drawing = true;
+      lastPoint = getPoint(e);
+    }
+
+    function drawMove(e) {
+      if (!drawing || terminated || submitting) return;
+      e.preventDefault();
+      const point = getPoint(e);
+      ctx.beginPath();
+      ctx.moveTo(lastPoint.x, lastPoint.y);
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+      lastPoint = point;
+      hasDrawn = true;
+    }
+
+    function endDraw() {
+      drawing   = false;
+      lastPoint = null;
+    }
+
+    canvas.addEventListener('mousedown',  startDraw);
+    canvas.addEventListener('mousemove',  drawMove);
+    window.addEventListener('mouseup',    endDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove',  drawMove,  { passive: false });
+    canvas.addEventListener('touchend',   endDraw);
+
+    // ─── Clear button ─────────────────────────────────────────────────────────
+    clearBtn.addEventListener('click', function() {
+      if (terminated || submitting) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hasDrawn = false;
+      setMessage('', '');
+    });
+
+    // ─── Submit button ────────────────────────────────────────────────────────
+    sendBtn.addEventListener('click', function() {
+      if (terminated || submitting) return;
+      if (!TOKEN) {
+        setMessage('Missing signing token.', 'err');
+        return;
+      }
+      if (isCanvasBlank()) {
+        setMessage('Please provide a signature before submitting.', 'err');
+        return;
+      }
+
+      submitting = true;
+      setButtons(false);
+      setMessage('Submitting signature...', 'muted');
+
+      const dataUrl = canvas.toDataURL('image/png');
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          submitting = false;
+
+          if (!res) {
+            // Should not happen, but guard anyway
+            setButtons(true);
+            setMessage('Error: no response from server.', 'err');
+            return;
+          }
+
+          var code = res.code || '';
+
+          if (code === 'already_signed' || res.already) {
+            terminate('This document has already been signed.', 'ok');
+            return;
+          }
+
+          if (code === 'token_used') {
+            terminate(res.message || res.error || 'This signing link has already been used.', 'err');
+            return;
+          }
+
+          if (code === 'processing') {
+            // Recoverable — re-enable so user can try again
+            setButtons(true);
+            setMessage(res.message || res.error || 'Signature is still being processed. Please wait a moment and try again.', 'muted');
+            return;
+          }
+
+          if (!res.ok) {
+            // Recoverable generic error — re-enable
+            setButtons(true);
+            setMessage('Error: ' + (res.message || res.error || 'unknown error'), 'err');
+            return;
+          }
+
+          // code === 'success'
+          terminate('Your signature has been submitted successfully. Thank you.', 'ok');
+        })
+        .withFailureHandler(function(err) {
+          submitting = false;
+          // Network / script error — recoverable, let user retry
+          setButtons(true);
+          setMessage('Error: ' + (err && err.message ? err.message : String(err)), 'err');
+        })
+        .crm_submitSignature(TOKEN, dataUrl);
+    });
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+    function init() {
+      if (!TOKEN) {
+        setInfo('Error: Missing signing token.', 'err');
+        terminated = true;
+        lockCanvas();
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (!res || !res.ok) {
+            setInfo('Error: ' + (res && res.error ? res.error : 'Invalid or expired signing link.'), 'err');
+            terminated = true;
+            lockCanvas();
+            return;
+          }
+
+          var docTitle  = (res.doc    && res.doc.TITLE)         ? res.doc.TITLE         : '';
+          var clientName = (res.client && res.client.FULL_NAME) ? res.client.FULL_NAME  : '';
+          setInfo(
+            (clientName ? 'Client: ' + clientName + ' | ' : '') +
+            (docTitle   ? 'Document: ' + docTitle          : 'Document loaded.')
+          );
+
+          if (res.signStatus && res.signStatus.toUpperCase() === 'SIGNED') {
+            terminate('This document has already been signed.', 'ok');
+            return;
+          }
+
+          // Ready — enable buttons
+          setButtons(true);
+        })
+        .withFailureHandler(function(err) {
+          setInfo('Error: ' + (err && err.message ? err.message : String(err)), 'err');
+          terminated = true;
+          lockCanvas();
+        })
+        .crm_getSignInfo(TOKEN);
+    }
+
+    init();
+  </script>
+</body>
+</html>

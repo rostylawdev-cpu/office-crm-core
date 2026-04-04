@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body { margin:0; font-family:Arial,sans-serif; background:#f6f8fc; color:#1f2937; }
+      .topbar { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; }
+      .brand { font-size:22px; font-weight:700; }
+      .nav { display:flex; gap:10px; }
+      .nav a { text-decoration:none; color:#1a73e8; font-weight:600; }
+      .wrap { max-width:700px; margin:0 auto; padding:20px; }
+      .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:20px; }
+      .form-group { margin-bottom:12px; }
+      label { display:block; font-weight:600; margin-bottom:4px; }
+      input, select, textarea { width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; box-sizing:border-box; }
+      textarea { height:100px; resize:vertical; }
+      button { background:#1a73e8; color:white; padding:10px 14px; border:none; border-radius:8px; font-weight:600; cursor:pointer; }
+      button:hover { background:#1557b0; }
+      .muted { color:#6b7280; font-size:13px; margin-top:3px; }
+      .message { margin-bottom:12px; padding:10px; border-radius:8px; }
+      .success { background:#dcfce7; color:#166534; }
+      .error { background:#fee2e2; color:#991b1b; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">New Task</div>
+      <div class="nav">
+        <a href="<?= webAppBase ?>?page=home">Home</a>
+        <a href="<?= webAppBase ?>?page=search">Search</a>
+        <a href="<?= webAppBase ?>?page=matter&id=<?= matterId ?>">Back to Matter</a>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="card">
+        <div class="form-group"><strong>Matter:</strong> <?= matterTitle ?> (<?= matterId ?>)</div>
+        <div class="form-group"><strong>Client ID:</strong> <?= clientId || "(none)" ?> <span class="muted"><?= clientName || "" ?></span></div>
+
+        <div id="statusMsg" class="message" style="display:none;"></div>
+
+        <form id="newTaskForm">
+          <div class="form-group"><label for="title">Title *</label><input id="title" name="title" type="text" required /></div>
+          <div class="form-group"><label for="type">Type</label><select id="type" name="type"><option value="GENERAL">GENERAL</option><option value="FOLLOW_UP">FOLLOW_UP</option><option value="DOC_REQUEST">DOC_REQUEST</option><option value="MEETING">MEETING</option><option value="REVIEW">REVIEW</option></select></div>
+          <div class="form-group"><label for="priority">Priority</label><select id="priority" name="priority"><option value="MEDIUM">MEDIUM</option><option value="HIGH">HIGH</option><option value="LOW">LOW</option></select></div>
+          <div class="form-group"><label for="dueDate">Due Date</label><input id="dueDate" name="dueDate" type="date" /></div>
+          <div class="form-group"><label for="status">Status</label><select id="status" name="status"><option value="OPEN">OPEN</option><option value="IN_PROGRESS">IN_PROGRESS</option><option value="DONE">DONE</option></select></div>
+          <div class="form-group"><label for="notes">Notes</label><textarea id="notes" name="notes"></textarea></div>
+          <button type="submit">Create Task</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const WEB_APP_BASE = "<?= webAppBase ?>";
+      const MATTER_ID = "<?= matterId ?>";
+      const CLIENT_ID = "<?= clientId || '' ?>";
+
+      function showMessage(type, text) {
+        const el = document.getElementById('statusMsg');
+        el.style.display = 'block';
+        el.className = 'message ' + (type === 'success' ? 'success' : 'error');
+        el.textContent = text;
+      }
+
+      document.getElementById('newTaskForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const title = document.getElementById('title').value.trim();
+        if (!title) {
+          showMessage('error', 'Title is required');
+          return;
+        }
+
+        const data = {
+          matterId: MATTER_ID,
+          clientId: CLIENT_ID,
+          title: title,
+          type: document.getElementById('type').value,
+          priority: document.getElementById('priority').value,
+          dueDate: document.getElementById('dueDate').value,
+          status: document.getElementById('status').value,
+          notes: document.getElementById('notes').value.trim(),
+        };
+
+        showMessage('success', 'Creating task...');
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok) {
+              showMessage('success', 'Task created successfully. Redirecting...');
+              setTimeout(function() {
+                window.location.href = WEB_APP_BASE + '?page=matter&id=' + encodeURIComponent(MATTER_ID);
+              }, 1000);
+            } else {
+              showMessage('error', 'Unable to create task');
+            }
+          })
+          .withFailureHandler(function(err) {
+            showMessage('error', 'Error creating task: ' + (err.message || err));
+          })
+          .crm_webCreateTask(data);
+      });
+    </script>
+  </body>
+</html>

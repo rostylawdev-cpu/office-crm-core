@@ -96,10 +96,10 @@ function crm_listTasks(filter) {
   const sh = ss.getSheetByName(c.SHEETS.TASKS);
   if (!sh) throw new Error("crm_listTasks: TASKS sheet not found");
 
-  const statusNeed = filter.status ? String(filter.status) : "OPEN";
-  const clientNeed = filter.clientId ? String(filter.clientId) : "";
-  const matterNeed = filter.matterId ? String(filter.matterId) : "";
-  const assigneeNeed = filter.assignee ? String(filter.assignee) : "";
+  const statusNeed = (filter.status !== undefined && filter.status !== null) ? String(filter.status).trim() : "";
+  const clientNeed = filter.clientId ? String(filter.clientId).trim() : "";
+  const matterNeed = filter.matterId ? String(filter.matterId).trim() : "";
+  const assigneeNeed = filter.assignee ? String(filter.assignee).trim() : "";
   const limit = Number(filter.limit || 50);
 
   const values = sh.getDataRange().getValues();

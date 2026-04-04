@@ -1,0 +1,337 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8" />
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f6f8fc;
+        color: #1f2937;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        background: white;
+        border-bottom: 1px solid #e5e7eb;
+        position: sticky;
+        top: 0;
+      }
+
+      .brand {
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .nav {
+        display: flex;
+        gap: 10px;
+      }
+
+      .nav a {
+        text-decoration: none;
+        color: #1a73e8;
+        font-weight: 600;
+      }
+
+      .wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .hero,
+      .card,
+      .stat {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+      }
+
+      .hero {
+        padding: 24px;
+        margin-bottom: 22px;
+      }
+
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 26px;
+      }
+
+      .hero p {
+        margin: 0;
+        color: #6b7280;
+        font-size: 15px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-block;
+        text-decoration: none;
+        padding: 12px 18px;
+        border-radius: 14px;
+        background: #1a73e8;
+        color: white;
+        font-weight: 600;
+      }
+
+      .btn2 {
+        background: #eef2ff;
+        color: #111827;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+        margin-bottom: 22px;
+      }
+
+      .stat {
+        padding: 18px;
+      }
+
+      .stat-value {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .stat-label {
+        color: #6b7280;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+
+      .card {
+        padding: 18px;
+      }
+
+      .card-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+
+      .item {
+        border-top: 1px solid #eef2f7;
+        padding: 12px 0;
+      }
+
+      .item:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+
+      .item-title {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .meta {
+        color: #6b7280;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .open {
+        display: inline-block;
+        margin-top: 6px;
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .loading {
+        color: #6b7280;
+      }
+
+      @media (max-width: 1100px) {
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .cards {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 700px) {
+        .stats {
+          grid-template-columns: 1fr;
+        }
+
+        .wrap {
+          padding: 16px;
+        }
+
+        .hero h1 {
+          font-size: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">Office CRM</div>
+      <div class="nav">
+        <a href="<?= webAppBase ?>?page=home">Home</a>
+        <a href="<?= webAppBase ?>?page=search">Search</a>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="hero">
+        <h1>CRM Web App Shell</h1>
+        <p>Первая отдельная оболочка CRM. Поиск, карточки и быстрый доступ к сущностям уже работают.</p>
+
+        <div class="actions">
+          <a class="btn" href="<?= webAppBase ?>?page=search">Open Search</a>
+          <a class="btn btn2" href="<?= webAppBase ?>?page=home">Refresh Home</a>
+          <a class="btn" href="<?= webAppBase ?>?page=new_lead">New Lead</a>
+          <a class="btn" href="<?= webAppBase ?>?page=new_client">New Client</a>
+          <a class="btn" href="<?= webAppBase ?>?page=new_matter">New Matter</a>
+        </div>
+      </div>
+
+      <div id="stats" class="stats">
+        <div class="loading">Loading dashboard...</div>
+      </div>
+
+      <div id="cards" class="cards"></div>
+    </div>
+
+    <script>
+      const WEB_APP_BASE = "<?= webAppBase ?>";
+
+      function esc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function openUrl(page, id) {
+        if (!page) return WEB_APP_BASE;
+
+        let url = WEB_APP_BASE + "?page=" + encodeURIComponent(page);
+
+        if (id !== undefined && id !== null && String(id) !== "") {
+          url += "&id=" + encodeURIComponent(id);
+        }
+
+        return url;
+      }
+
+      function renderStats(data) {
+        const stats = data.stats || {};
+
+        document.getElementById("stats").innerHTML = `
+          <div class="stat">
+            <div class="stat-value">${esc(stats.leads || 0)}</div>
+            <div class="stat-label">Leads</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${esc(stats.clients || 0)}</div>
+            <div class="stat-label">Clients</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${esc(stats.matters || 0)}</div>
+            <div class="stat-label">Matters</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${esc(stats.tasks || 0)}</div>
+            <div class="stat-label">Tasks</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${esc(stats.documents || 0)}</div>
+            <div class="stat-label">Documents</div>
+          </div>
+        `;
+      }
+
+      function renderSection(title, items, page, idField, renderFn) {
+        return `
+          <div class="card">
+            <div class="card-title">${esc(title)}</div>
+            ${
+              items && items.length
+                ? items.map(function (x) {
+                    return `
+                      <div class="item">
+                        ${renderFn(x)}
+                        <a class="open" href="${openUrl(page, x[idField] || "")}">Open</a>
+                      </div>
+                    `;
+                  }).join("")
+                : `<div class="meta">No items.</div>`
+            }
+          </div>
+        `;
+      }
+
+      function renderCards(data) {
+        const leads = data.recentLeads || [];
+        const clients = data.recentClients || [];
+        const matters = data.recentMatters || [];
+
+        document.getElementById("cards").innerHTML = `
+          ${renderSection("Recent Leads", leads, "lead", "LEAD_ID", function (x) {
+            return `
+              <div class="item-title">${esc(x.FULL_NAME || "")}</div>
+              <div class="meta">${esc(x.LEAD_ID || "")} · ${esc(x.PHONE || "")}</div>
+              <div class="meta">${esc(x.STATUS || "")} · ${esc(x.CASE_TYPE || "")}</div>
+            `;
+          })}
+
+          ${renderSection("Recent Clients", clients, "client", "CLIENT_ID", function (x) {
+            return `
+              <div class="item-title">${esc(x.FULL_NAME || "")}</div>
+              <div class="meta">${esc(x.CLIENT_ID || "")} · ${esc(x.PHONE || "")}</div>
+              <div class="meta">${esc(x.STATUS || "")} · ${esc(x.OWNER || "")}</div>
+            `;
+          })}
+
+          ${renderSection("Recent Matters", matters, "matter", "MATTER_ID", function (x) {
+            return `
+              <div class="item-title">${esc(x.TITLE || "")}</div>
+              <div class="meta">${esc(x.MATTER_ID || "")}</div>
+              <div class="meta">${esc(x.CATEGORY || "")} · ${esc(x.STAGE || "")}</div>
+            `;
+          })}
+        `;
+      }
+
+      google.script.run
+        .withSuccessHandler(function (data) {
+          renderStats(data || {});
+          renderCards(data || {});
+        })
+        .withFailureHandler(function (err) {
+          document.getElementById("stats").innerHTML =
+            '<div class="card"><div class="meta">Dashboard error: ' +
+            esc(err && err.message ? err.message : err) +
+            '</div></div>';
+
+          document.getElementById("cards").innerHTML = "";
+        })
+        .crm_getWebAppDashboard();
+    </script>
+  </body>
+</html>

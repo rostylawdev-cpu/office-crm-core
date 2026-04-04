@@ -174,3 +174,212 @@ function test_convertLeadToClientAndMatter() {
   Logger.log(JSON.stringify(res, null, 2));
   return res;
 }
+
+function test_getLeadCard() {
+  const leads = crm_listLeads({ limit: 1 });
+  if (!leads.length) throw new Error("No leads found");
+
+  const leadId = leads[0].LEAD_ID;
+
+  const card = crm_getLeadCard(leadId, {
+    limitActivities: 20,
+  });
+
+  Logger.log(JSON.stringify(card, null, 2));
+  return card;
+}
+
+function test_convertLeadToClient() {
+  const leadRes = crm_addLead({
+    fullName: "Lead Convert Test",
+    phone: "050-8888888",
+    email: "lead.convert@example.com",
+    source: "TEST",
+    campaign: "TEST_CONVERT",
+    caseType: "GENERAL",
+    description: "Test convert lead to client",
+    status: "NEW",
+    notes: "autotest",
+  });
+
+  const leadId = leadRes.leadId;
+
+  const res = crm_convertLeadToClient(leadId);
+
+  Logger.log(JSON.stringify(res, null, 2));
+  return res;
+}
+
+function debug_showLeadCardJson() {
+  const leads = crm_listLeads({ limit: 1 });
+  if (!leads.length) throw new Error("No leads found");
+
+  const leadId = leads[0].LEAD_ID;
+  const card = crm_getLeadCard(leadId, { limitActivities: 20 });
+
+  SpreadsheetApp.getUi().alert(JSON.stringify({
+    ok: card.ok,
+    leadId: leadId,
+    hasLead: !!card.lead,
+    hasClient: !!card.client,
+    mattersCount: (card.matters || []).length,
+    activitiesCount: (card.activities || []).length
+  }, null, 2));
+
+  return card;
+}
+
+function test_getClientCard() {
+  const leads = crm_listLeads({ limit: 10 });
+  if (!leads.length) throw new Error("No leads found");
+
+  let clientId = "";
+  for (var i = 0; i < leads.length; i++) {
+    if (leads[i].CLIENT_ID) {
+      clientId = leads[i].CLIENT_ID;
+      break;
+    }
+  }
+
+  if (!clientId) {
+    const found = crm_findClientByPhone("050-1234567");
+    if (found && found.CLIENT_ID) {
+      clientId = found.CLIENT_ID;
+    }
+  }
+
+  if (!clientId) throw new Error("No clientId found for test_getClientCard");
+
+  const card = crm_getClientCard(clientId, {
+    tasksStatus: "OPEN",
+    limitTasks: 20,
+    limitActivities: 20,
+  });
+
+  Logger.log(JSON.stringify(card, null, 2));
+  return card;
+}
+
+function test_searchAll() {
+  const res = crm_searchAll("050-7777777", { limit: 10 });
+  Logger.log(JSON.stringify(res, null, 2));
+  return res;
+}
+
+function test_addDocument() {
+  const found = crm_findClientByPhone("050-7777777") || crm_findClientByPhone("050-1234567");
+  if (!found || !found.CLIENT_ID) throw new Error("No test client found");
+
+  const matters = crm_findMattersByClientId(found.CLIENT_ID) || [];
+  const matterId = matters.length ? matters[0].MATTER_ID : "";
+
+  const res = crm_addDocument({
+    clientId: found.CLIENT_ID,
+    matterId: matterId,
+    type: "AGREEMENT",
+    status: "READY",
+    title: "Test Agreement Document",
+    docUrl: "https://docs.google.com/document/d/test-doc-id/edit",
+    pdfUrl: "https://drive.google.com/file/d/test-pdf-id/view",
+    fileId: "test-file-id",
+    notes: "Autotest document",
+  });
+
+  Logger.log(JSON.stringify(res, null, 2));
+  return res;
+}
+
+function test_listDocumentsByClient() {
+  const found = crm_findClientByPhone("050-7777777") || crm_findClientByPhone("050-1234567");
+  if (!found || !found.CLIENT_ID) throw new Error("No test client found");
+
+  const docs = crm_listDocumentsByClientId(found.CLIENT_ID, { limit: 20 });
+  Logger.log(JSON.stringify(docs, null, 2));
+  return docs;
+}
+
+function test_listDocumentsByMatter() {
+  const matters = crm_findMattersByClientId("CL_20260315_182218_GN32F7");
+  if (!matters.length) throw new Error("No matters found for test client");
+
+  const docs = crm_listDocumentsByMatterId(matters[0].MATTER_ID, { limit: 20 });
+  Logger.log(JSON.stringify(docs, null, 2));
+  return docs;
+}
+
+function test_updateMatterStage() {
+  const found = crm_findClientByPhone("050-7777777") || crm_findClientByPhone("050-1234567");
+  if (!found || !found.CLIENT_ID) throw new Error("No test client found");
+
+  const matters = crm_findMattersByClientId(found.CLIENT_ID) || [];
+  if (!matters.length) throw new Error("No matters found");
+
+  const matterId = matters[0].MATTER_ID;
+  const res = crm_updateMatterStage(matterId, "DOCS", "Autotest stage update");
+
+  Logger.log(JSON.stringify(res, null, 2));
+  return res;
+}
+
+function test_addTaskToMatterManual() {
+  const found = crm_findClientByPhone("050-7777777") || crm_findClientByPhone("050-1234567");
+  if (!found || !found.CLIENT_ID) throw new Error("No test client found");
+
+  const matters = crm_findMattersByClientId(found.CLIENT_ID) || [];
+  if (!matters.length) throw new Error("No matters found");
+
+  const matterId = matters[0].MATTER_ID;
+
+  const res = crm_createTask({
+    clientId: found.CLIENT_ID,
+    matterId: matterId,
+    type: "FOLLOW_UP",
+    title: "Manual task from autotest",
+    dueDate: nowIso_(),
+    status: "OPEN",
+    priority: "MEDIUM",
+    assignee: getActiveUserEmail_() || "unknown",
+    generatedBy: "AUTOTEST",
+    notes: "Autotest manual task",
+  });
+
+  Logger.log(JSON.stringify(res, null, 2));
+  return res;
+}
+
+function test_addDocumentToMatterManual() {
+  const found = crm_findClientByPhone("050-7777777") || crm_findClientByPhone("050-1234567");
+  if (!found || !found.CLIENT_ID) throw new Error("No test client found");
+
+  const matters = crm_findMattersByClientId(found.CLIENT_ID) || [];
+  if (!matters.length) throw new Error("No matters found");
+
+  const matterId = matters[0].MATTER_ID;
+
+  const res = crm_addDocument({
+    clientId: found.CLIENT_ID,
+    matterId: matterId,
+    type: "MEDICAL",
+    status: "READY",
+    title: "Manual document from autotest",
+    docUrl: "",
+    pdfUrl: "",
+    fileId: "",
+    notes: "Autotest matter document",
+  });
+
+  Logger.log(JSON.stringify(res, null, 2));
+  return res;
+}
+
+function test_documentsAfterUpload() {
+  const found = crm_findClientByPhone("050-7777777") || crm_findClientByPhone("050-1234567");
+  if (!found || !found.CLIENT_ID) throw new Error("No test client found");
+
+  const matters = crm_findMattersByClientId(found.CLIENT_ID) || [];
+  if (!matters.length) throw new Error("No matters found");
+
+  const docs = crm_listDocumentsByMatterId(matters[0].MATTER_ID, { limit: 20 });
+  Logger.log(JSON.stringify(docs, null, 2));
+  return docs;
+}

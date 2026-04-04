@@ -20,8 +20,8 @@ function crm_addClient(input) {
   const sh = ss.getSheetByName(c.SHEETS.CLIENTS);
   if (!sh) throw new Error("Clients sheet missing");
 
-  const fullName = (input?.fullName ?? "").trim();
-  const phone = (input?.phone ?? "").trim();
+  const fullName = String(input?.fullName ?? "").trim();
+  const phone = String(input?.phone ?? "").trim();
 
   if (!fullName) throw new Error("fullName is required");
   if (!phone) throw new Error("phone is required");
@@ -29,16 +29,22 @@ function crm_addClient(input) {
   const clientId = generateId_("CL");
   const ts = nowIso_();
 
+  // Create client folder (safe: returns null if folder creation fails)
+  const folderUrl = crm_getOrCreateClientFolder(clientId, fullName);
+
   const rowObj = {
     CLIENT_ID: clientId,
     FULL_NAME: fullName,
     PHONE: phone,
-    EMAIL: (input?.email ?? "").trim(),
-    ID_NUMBER: (input?.idNumber ?? "").trim(),
-    LOCALE: (input?.locale ?? "").trim(),
-    STATUS: (input?.status ?? "NEW").trim(),
-    OWNER: (input?.owner ?? getActiveUserEmail_()).trim(),
-    SOURCE: (input?.source ?? "").trim(),
+    EMAIL: String(input?.email ?? "").trim(),
+    ID_NUMBER: String(input?.idNumber ?? "").trim(),
+    ID_TYPE: String(input?.idType ?? "").trim(),
+    LOCALE: String(input?.locale ?? "").trim(),
+    STATUS: String(input?.status ?? "NEW").trim(),
+    OWNER: String(input?.owner ?? getActiveUserEmail_()).trim(),
+    SOURCE: String(input?.source ?? "").trim(),
+    ADDRESS: String(input?.address ?? "").trim(),
+    FOLDER_URL: folderUrl || "",
     CREATED_AT: ts,
     UPDATED_AT: ts,
     LAST_ACTIVITY_AT: ts,
@@ -50,10 +56,10 @@ function crm_addClient(input) {
     clientId,
     action: "CLIENT_CREATED",
     message: `Client created: ${fullName}`,
-    meta: { phone, email: rowObj.EMAIL, row },
+    meta: { phone, email: rowObj.EMAIL, row, folderUrl: folderUrl || "" },
   });
 
-  logInfo_("CLIENT", "Created client", { clientId, row });
+  logInfo_("CLIENT", "Created client", { clientId, row, folderUrl: folderUrl || "" });
 
   return { clientId, row };
 }
@@ -135,12 +141,14 @@ function crm_upsertClient(p) {
   const col = (name) => headers.indexOf(name) + 1;
 
   const patch = {
-    FULL_NAME: p.fullName,
-    EMAIL: p.email,
-    LOCALE: p.locale,
-    SOURCE: p.source,
-    OWNER: p.owner,
-    STATUS: p.status,
+    FULL_NAME: p.fullName !== undefined && p.fullName !== null ? String(p.fullName).trim() : "",
+    EMAIL: p.email !== undefined && p.email !== null ? String(p.email).trim() : "",
+    ID_TYPE: p.idType !== undefined && p.idType !== null ? String(p.idType).trim() : "",
+    ID_NUMBER: p.idNumber !== undefined && p.idNumber !== null ? String(p.idNumber).trim() : "",
+    LOCALE: p.locale !== undefined && p.locale !== null ? String(p.locale).trim() : "",
+    SOURCE: p.source !== undefined && p.source !== null ? String(p.source).trim() : "",
+    OWNER: p.owner !== undefined && p.owner !== null ? String(p.owner).trim() : "",
+    STATUS: p.status !== undefined && p.status !== null ? String(p.status).trim() : "",
     UPDATED_AT: nowIso_(),
     LAST_ACTIVITY_AT: nowIso_(),
   };
@@ -179,6 +187,76 @@ function crm_upsertClient(p) {
       clientId: existing.CLIENT_ID,
       phone: normPhone_(phone),
       row,
+    });
+  }
+
+  return existing;
+}
+
+function crm_updateClient(clientId, updates) {
+  if (!clientId) throw new Error("crm_updateClient: clientId is required");
+  if (!updates || typeof updates !== "object") throw new Error("crm_updateClient: updates object is required");
+
+  const existing = crm_findClientById(clientId);
+  if (!existing) throw new Error("crm_updateClient: client not found: " + clientId);
+
+  const ss = crm_getSpreadsheet_();
+  const c = cfg_();
+  const sh = ss.getSheetByName(c.SHEETS.CLIENTS);
+  if (!sh) throw new Error("crm_updateClient: Clients sheet not found");
+
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const rowNum = existing.__row;
+  if (!rowNum) throw new Error("crm_updateClient: existing row not found");
+
+  const fieldValues = {
+    FULL_NAME: updates.fullName,
+    PHONE: updates.phone,
+    EMAIL: updates.email,
+    ID_NUMBER: updates.idNumber,
+    ID_TYPE: updates.idType,
+    LOCALE: updates.locale,
+    STATUS: updates.status,
+    OWNER: updates.owner,
+    SOURCE: updates.source,
+  };
+
+  let changed = false;
+
+  Object.keys(fieldValues).forEach(function (field) {
+    const value = fieldValues[field];
+    if (value === undefined || value === null) return;
+    const trimmed = String(value).trim();
+    if (trimmed === "") return;
+
+    const colIdx = headers.indexOf(field) + 1;
+    if (colIdx <= 0) return;
+
+    sh.getRange(rowNum, colIdx).setValue(trimmed);
+    existing[field] = trimmed;
+    changed = true;
+  });
+
+  const now = nowIso_();
+  const updatedAtCol = headers.indexOf("UPDATED_AT") + 1;
+  if (updatedAtCol > 0) {
+    sh.getRange(rowNum, updatedAtCol).setValue(now);
+    existing.UPDATED_AT = now;
+    changed = true;
+  }
+  const lastActivityCol = headers.indexOf("LAST_ACTIVITY_AT") + 1;
+  if (lastActivityCol > 0) {
+    sh.getRange(rowNum, lastActivityCol).setValue(now);
+    existing.LAST_ACTIVITY_AT = now;
+    changed = true;
+  }
+
+  if (changed) {
+    crm_logActivity({
+      action: "CLIENT_UPDATED",
+      message: "Client updated: " + clientId,
+      clientId: clientId,
+      meta: { updates: fieldValues },
     });
   }
 

@@ -83,12 +83,14 @@ function crm_convertLeadToClient(leadId) {
   }
 
   const clientRes = crm_upsertClient({
-    fullName: lead.FULL_NAME,
-    phone: lead.PHONE,
-    email: lead.EMAIL,
-    source: lead.SOURCE || "LEAD_CONVERSION",
+    fullName: String(lead.FULL_NAME ?? "").trim(),
+    phone: String(lead.PHONE ?? "").trim(),
+    email: String(lead.EMAIL ?? "").trim(),
+    idType: String(lead.ID_TYPE || "").trim(),
+    idNumber: String(lead.ID_NUMBER || "").trim(),
+    source: String(lead.SOURCE ?? "LEAD_CONVERSION").trim(),
     status: "NEW",
-    owner: lead.ASSIGNED_TO || getActiveUserEmail_(),
+    owner: String(lead.ASSIGNED_TO ?? getActiveUserEmail_()).trim(),
   });
 
   const clientId = clientRes.clientId || clientRes.CLIENT_ID;
