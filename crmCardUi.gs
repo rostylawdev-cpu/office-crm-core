@@ -49,6 +49,12 @@ function crm_uiUpdateMatterStage(matterId, stage) {
   return crm_updateMatterStage(matterId, stage, "Updated from Matter Card UI");
 }
 
+function crm_uiUpdateMatterEventDate(matterId, eventDate) {
+  if (!matterId) throw new Error("crm_uiUpdateMatterEventDate: matterId is required");
+  crm_setMatterField(matterId, "EVENT_DATE", String(eventDate || "").trim());
+  return { ok: true };
+}
+
 function crm_uiAddTaskToMatter(payload) {
   if (!payload || !payload.matterId) throw new Error("crm_uiAddTaskToMatter: missing matterId");
 

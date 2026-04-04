@@ -47,6 +47,9 @@ function crm_createMatter(input) {
     UPDATED_AT: now,
     LAST_ACTIVITY_AT: now,
     SUMMARY_SHORT: input.summaryShort || "",
+    // Event/accident date — editable at creation; must NOT be derived from lead date.
+    // Empty when unknown; safe for all matter types.
+    EVENT_DATE: String(input.eventDate || "").trim(),
   };
 
   const rowIndex = appendRowByHeaders_(sh, c.HEADERS.MATTERS, rowObj);

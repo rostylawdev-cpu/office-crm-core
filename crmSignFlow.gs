@@ -238,8 +238,81 @@ function crm_buildTemplateData(client, matter) {
   const isWorkAccident = String(matter.CATEGORY || "").toUpperCase() === "WORK_ACCIDENT";
   const authority = String(matter.AUTHORITY || "").trim();
 
+  // Map matter.AUTHORITY to language-specific display strings.
+  // Handles enum values from the form (LABOR_COURT, LABOR_INSURANCE, …),
+  // the "Bituach Leumi" string written by onboarding init, and free-text values.
+  // If authority is empty, work-accident default fills each language separately.
+  var authorityNorm = authority.toUpperCase().replace(/[\s-]+/g, "_");
+  var authorityHe, authorityRu;
+  if (authorityNorm === "LABOR_COURT") {
+    authorityHe = "בית הדין לעבודה";
+    authorityRu = "суд по трудовым спорам";
+  } else if (authorityNorm === "NATIONAL_LABOR_COURT") {
+    authorityHe = "בית הדין הארצי לעבודה";
+    authorityRu = "Национальный суд по трудовым спорам";
+  } else if (authorityNorm === "LABOR_INSURANCE" || authorityNorm === "BITUACH_LEUMI" || authorityNorm === "BITUACH LEUMI") {
+    authorityHe = "המוסד לביטוח לאומי";
+    authorityRu = "Битуах Леуми";
+  } else if (authorityNorm === "EMPLOYER") {
+    authorityHe = "המעסיק";
+    authorityRu = "работодатель";
+  } else if (authority === "") {
+    // Empty: apply work-accident language-specific defaults; otherwise leave blank
+    authorityHe = isWorkAccident ? "המוסד לביטוח לאומי" : "";
+    authorityRu = isWorkAccident ? "Битуах Леуми" : "";
+  } else {
+    // Free-text entered by staff — pass through as-is to both (staff knows the language)
+    authorityHe = authority;
+    authorityRu = authority;
+  }
+
+  // Map raw client.ID_TYPE to language-appropriate display values.
+  var rawIdType = String(client.ID_TYPE || "").trim();
+  var idTypeNorm = rawIdType.toUpperCase().replace(/[\s_-]+/g, "");
+  var idTypeRu, idTypeHe;
+  if (idTypeNorm === "TZ" || idTypeNorm === "TEUDATZEHUT") {
+    idTypeRu = "теудат зеут";
+    idTypeHe = "תעודת זהות";
+  } else if (idTypeNorm === "PASSPORT" || idTypeNorm === "DARKON") {
+    idTypeRu = "паспорт";
+    idTypeHe = "דרכון";
+  } else if (idTypeNorm === "OTHER") {
+    idTypeRu = "документ";
+    idTypeHe = "מסמך מזהה";
+  } else if (rawIdType === "") {
+    idTypeRu = "";
+    idTypeHe = "";
+  } else {
+    // Unknown type — pass through raw value rather than produce wrong-language text
+    idTypeRu = rawIdType;
+    idTypeHe = rawIdType;
+  }
+
+  // Build BL_CONTEXT_HE from matter category + stored event date.
+  // The event date is never derived from lead creation date; it comes from matter.EVENT_DATE.
+  var blContextHe = "";
+  if (isWorkAccident) {
+    var rawEventDate = String(matter.EVENT_DATE || "").trim();
+    var formattedEventDate = "";
+    if (rawEventDate) {
+      try {
+        var evtD = new Date(rawEventDate);
+        if (!isNaN(evtD.getTime())) {
+          formattedEventDate = ("0" + evtD.getDate()).slice(-2) + "." +
+                               ("0" + (evtD.getMonth() + 1)).slice(-2) + "." +
+                               evtD.getFullYear();
+        }
+      } catch (e) {}
+      if (!formattedEventDate) formattedEventDate = rawEventDate; // raw fallback if Date() fails
+    }
+    blContextHe = formattedEventDate
+      ? "(בקשר לתאונת עבודה מיום " + formattedEventDate + ", לרבות זכויות מול המוסד לביטוח לאומי)"
+      : "(בקשר לתאונת עבודה, לרבות זכויות מול המוסד לביטוח לאומי)";
+  }
+
   return {
-    CLIENT_FULL_NAME: String(client.FULL_NAME || "Client").trim(),
+    // No fake fallback — empty string is safer than "Client" in a legal document.
+    CLIENT_FULL_NAME: String(client.FULL_NAME || "").trim(),
     CLIENT_ID_NUMBER: clientIdNumberFinal,
     CLIENT_ID_TYPE: String(client.ID_TYPE || "").trim(),
     CLIENT_PHONE: String(client.PHONE || "").trim(),
@@ -249,19 +322,20 @@ function crm_buildTemplateData(client, matter) {
     ID_NUMBER: clientIdNumberFinal,
     PHONE: String(client.PHONE || "").trim(),
 
-    MATTER_TITLE: String(matter.TITLE || "Subject matter").trim(),
+    // No fake fallback — empty title is safer than "Subject matter" in a legal document.
+    MATTER_TITLE: String(matter.TITLE || "").trim(),
     MATTER_ID: String(matter.MATTER_ID || "").trim(),
-    MATTER_AUTHORITY: authority,
+    MATTER_AUTHORITY: authorityHe,
     MATTER_SUBJECT: String(matter.SUMMARY_SHORT || matter.TITLE || "").trim(),
 
     SUBJECT_RU: String(matter.SUMMARY_SHORT || matter.TITLE || matter.CATEGORY || "").trim(),
     SUBJECT_HE: String(matter.SUMMARY_SHORT_HE || matter.TITLE || matter.CATEGORY || "").trim(),
 
-    AUTHORITY_RU: authority,
-    AUTHORITY_HE: authority,
+    AUTHORITY_RU: authorityRu,
+    AUTHORITY_HE: authorityHe,
 
     DATE_SIGN: nowIso_(),
-    PAYMENT_TERMS: String(matter.PAYMENT_TERMS || "Payment terms and rates are subject to a separate agreement.").trim(),
+    PAYMENT_TERMS: String(matter.PAYMENT_TERMS || "").trim(),
     PAYMENT_RU: String(matter.PAYMENT_TERMS || matter.PAYMENT_RU || "Согласно отдельной договорённости об оплате.").trim(),
     PAYMENT_HE: String(matter.PAYMENT_HE || "בהתאם להסכם שכר טרחה נפרד.").trim(),
 
@@ -279,8 +353,8 @@ function crm_buildTemplateData(client, matter) {
 
     CLIENT_FULL_NAME_RU: String(client.FULL_NAME || "").trim(),
     CLIENT_FULL_NAME_HE: String(client.FULL_NAME || "").trim(),
-    ID_TYPE_RU: String(client.ID_TYPE || "").trim(),
-    ID_TYPE_HE: String(client.ID_TYPE || "").trim(),
+    ID_TYPE_RU: idTypeRu,
+    ID_TYPE_HE: idTypeHe,
     ADDRESS_RU: String(client.ADDRESS || "").trim(),
     ADDRESS_HE: String(client.ADDRESS || "").trim(),
 
@@ -292,9 +366,7 @@ function crm_buildTemplateData(client, matter) {
     LAWYER_CONFIRM_RU: office.LAWYER_CONFIRM_RU,
     LAWYER_CONFIRM_HE: office.LAWYER_CONFIRM_HE,
 
-    BL_CONTEXT_HE: isWorkAccident
-      ? "(בקשר לתאונת עבודה, לרבות זכויות מול המוסד לביטוח לאומי)"
-      : "",
+    BL_CONTEXT_HE: blContextHe,
   };
 }
 
@@ -428,7 +500,12 @@ function crm_generateAgreementAndPoa(matterId) {
     },
   });
 
-  crm_updateMatterStage(matterId, "DOCUMENTS_GENERATED");
+  // Onboarding matters must stay at ONBOARDING stage so crm_createSignLinksForMatter
+  // continues to use the package-token path (not the per-doc path) when "Create Sign Links"
+  // is clicked after doc generation.
+  if ((matter.STAGE || "").toUpperCase() !== "ONBOARDING") {
+    crm_updateMatterStage(matterId, "DOCUMENTS_GENERATED");
+  }
 
   return {
     ok: true,

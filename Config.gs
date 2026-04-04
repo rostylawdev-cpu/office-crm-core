@@ -76,6 +76,7 @@ const CFG = {
       "UPDATED_AT",
       "LAST_ACTIVITY_AT",
       "SUMMARY_SHORT",
+      "EVENT_DATE",
     ],
 
     DOCUMENTS: [

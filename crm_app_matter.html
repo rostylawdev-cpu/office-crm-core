@@ -46,6 +46,17 @@
           <div class="row"><div class="k">Stage</div><div class="v"><span class="pill"><?= card.matter.STAGE || "" ?></span></div></div>
           <div class="row"><div class="k">Authority</div><div class="v"><?= card.matter.AUTHORITY || "" ?></div></div>
           <div class="row"><div class="k">Owner</div><div class="v"><?= card.matter.OWNER || "" ?></div></div>
+          <div class="row">
+            <div class="k">Event Date</div>
+            <div class="v">
+              <span id="eventDateDisplay"><?= card.matter.EVENT_DATE || "" ?></span>
+              <input type="date" id="eventDateInput" value="<?= card.matter.EVENT_DATE || "" ?>" style="display:none;border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:13px;">
+              <button id="eventDateEditBtn" onclick="startEditEventDate()" style="margin-left:6px;padding:2px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:6px;background:#f3f4f6;cursor:pointer;">Edit</button>
+              <button id="eventDateSaveBtn" onclick="saveEventDate()" style="display:none;margin-left:4px;padding:2px 8px;font-size:12px;border:0;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;">Save</button>
+              <button id="eventDateCancelBtn" onclick="cancelEditEventDate()" style="display:none;margin-left:4px;padding:2px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:6px;background:#f3f4f6;cursor:pointer;">Cancel</button>
+              <span id="eventDateStatus" style="font-size:12px;margin-left:6px;"></span>
+            </div>
+          </div>
           <? if (card.matter.FOLDER_URL) { ?>
             <div style="margin-top:10px;"><a href="<?= card.matter.FOLDER_URL ?>" target="_blank" style="text-decoration:none; padding:8px 12px; border-radius:8px; background:#1a73e8; color:white; font-weight:600; display:inline-block;">📁 Open Folder</a></div>
           <? } ?>
@@ -124,6 +135,49 @@
     </div>
 
     <script>
+      var MATTER_ID = "<?= entityId ?>";
+
+      function startEditEventDate() {
+        document.getElementById('eventDateDisplay').style.display = 'none';
+        document.getElementById('eventDateEditBtn').style.display = 'none';
+        document.getElementById('eventDateInput').style.display = '';
+        document.getElementById('eventDateSaveBtn').style.display = '';
+        document.getElementById('eventDateCancelBtn').style.display = '';
+        document.getElementById('eventDateStatus').textContent = '';
+      }
+
+      function cancelEditEventDate() {
+        document.getElementById('eventDateDisplay').style.display = '';
+        document.getElementById('eventDateEditBtn').style.display = '';
+        document.getElementById('eventDateInput').style.display = 'none';
+        document.getElementById('eventDateSaveBtn').style.display = 'none';
+        document.getElementById('eventDateCancelBtn').style.display = 'none';
+        document.getElementById('eventDateStatus').textContent = '';
+      }
+
+      function saveEventDate() {
+        var val = document.getElementById('eventDateInput').value || '';
+        var statusEl = document.getElementById('eventDateStatus');
+        statusEl.textContent = 'Saving...';
+        statusEl.style.color = '#6b7280';
+        document.getElementById('eventDateSaveBtn').disabled = true;
+
+        google.script.run
+          .withSuccessHandler(function() {
+            document.getElementById('eventDateDisplay').textContent = val;
+            statusEl.textContent = 'Saved';
+            statusEl.style.color = '#065f46';
+            document.getElementById('eventDateSaveBtn').disabled = false;
+            cancelEditEventDate();
+          })
+          .withFailureHandler(function(err) {
+            statusEl.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
+            statusEl.style.color = '#991b1b';
+            document.getElementById('eventDateSaveBtn').disabled = false;
+          })
+          .crm_uiUpdateMatterEventDate(MATTER_ID, val);
+      }
+
       function setSignFlowStatus(text, klass) {
         const el = document.getElementById('signFlowStatus');
         if (!el) return;
@@ -199,7 +253,9 @@
           }
           const safeUrl = String(item.signUrl || '');
           const label = item.docType || item.docTitle || 'Agreement/POA';
-          const title = item.docTitle ? (item.docTitle + ' Sign Link') : (label + ' Sign Link');
+          const title = item.docType === 'ONBOARDING_PACKAGE'
+            ? 'Onboarding Sign Link (Agreement + POA)'
+            : (item.docTitle ? (item.docTitle + ' Sign Link') : (label + ' Sign Link'));
           const status = (item.docStatus || 'UNKNOWN').toUpperCase();
           html += '<li>';
           html += '<b>' + title + '</b> <span class="status-pill ' + status + '">' + status + '</span><br>';

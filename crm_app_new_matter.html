@@ -53,6 +53,10 @@
             </select>
           </div>
           <div class="form-group">
+            <label>Event / Accident Date <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
+            <input type="date" name="EVENT_DATE" id="eventDateInput">
+          </div>
+          <div class="form-group">
             <label>Authority</label>
             <select name="AUTHORITY">
               <option value="">-- Select Authority --</option>
@@ -191,6 +195,7 @@
           AUTHORITY: authority,
           OWNER: owner,
           TITLE: title,
+          EVENT_DATE: (document.getElementById('eventDateInput').value || "").trim(),
           sourceLeadId: SOURCE_ID || ""
         };
 

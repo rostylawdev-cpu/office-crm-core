@@ -481,6 +481,7 @@ function crm_webCreateMatter(data) {
     title: data.TITLE,
     authority: data.AUTHORITY,
     owner: data.OWNER,
+    eventDate: String(data.EVENT_DATE || "").trim(),
   };
   const result = crm_createMatter(input);
   return { id: result.matterId };

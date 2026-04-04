@@ -185,7 +185,7 @@
           var code = res.code || '';
 
           if (code === 'already_signed' || res.already) {
-            terminate('This document has already been signed.', 'ok');
+            terminate('This document has already been signed. You can now close this page.', 'ok');
             return;
           }
 
@@ -209,7 +209,7 @@
           }
 
           // code === 'success'
-          terminate('Your signature has been submitted successfully. Thank you.', 'ok');
+          terminate('Your signature has been submitted successfully. You can now close this page.', 'ok');
         })
         .withFailureHandler(function(err) {
           submitting = false;
@@ -246,7 +246,7 @@
           );
 
           if (res.signStatus && res.signStatus.toUpperCase() === 'SIGNED') {
-            terminate('This document has already been signed.', 'ok');
+            terminate('This document has already been signed. You can now close this page.', 'ok');
             return;
           }
 
