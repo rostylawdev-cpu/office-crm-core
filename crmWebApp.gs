@@ -2,6 +2,13 @@
 
 function crm_getWebAppDashboard() {
   const c = cfg_();
+  const ss = crm_getSpreadsheet_();
+  const ssId = ss.getId();
+  const sheetNames = ss.getSheets().map(function(s) { return s.getName(); });
+  logInfo_("DASHBOARD", "Dashboard load: spreadsheetId=" + ssId + " sheets=[" + sheetNames.join(", ") + "]", {
+    spreadsheetId: ssId,
+    sheetNames: sheetNames,
+  });
 
   const recentLeads = crm_listLeads({ limit: 10 }) || [];
 
@@ -36,19 +43,3 @@ function crm_getWebAppDashboard() {
   };
 }
 
-/**
- * Универсальный helper: прочитать все строки листа как массив объектов
- */
-function crm_getAllRowsFromSheet_(sheetName, headers) {
-  const ss = crm_getSpreadsheet_();
-  const sh = ss.getSheetByName(sheetName);
-  if (!sh) return [];
-
-  const lastRow = sh.getLastRow();
-  if (lastRow < 2) return [];
-
-  const data = sh.getRange(2, 1, lastRow - 1, headers.length).getValues();
-  return data.map(function (row, i) {
-    return rowToObj_(headers, row, i + 2);
-  });
-}

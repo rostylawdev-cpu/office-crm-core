@@ -200,7 +200,10 @@ function getRowValueByHeader_(sheet, rowNumber, headerName) {
 function crm_getAllRowsFromSheet_(sheetName, headers) {
   const ss = crm_getSpreadsheet_();
   const sh = ss.getSheetByName(sheetName);
-  if (!sh) throw new Error("Sheet not found: " + sheetName);
+  if (!sh) {
+    logInfo_("DATA", "crm_getAllRowsFromSheet_: sheet not found: " + sheetName, {});
+    return [];
+  }
 
   const values = sh.getDataRange().getValues();
   if (values.length < 2) return [];

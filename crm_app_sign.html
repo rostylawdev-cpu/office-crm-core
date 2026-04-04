@@ -35,6 +35,7 @@
 
   <script>
     const TOKEN = "<?= token ?>";
+    const WEB_APP_BASE = "<?= webAppBase ?>";
 
     var submitting = false;
     var terminated = false;
@@ -209,7 +210,15 @@
           }
 
           // code === 'success'
-          terminate('Your signature has been submitted successfully. You can now close this page.', 'ok');
+          if (res.clientId) {
+            terminate('Your signature has been submitted successfully. Redirecting to your client profile...', 'ok');
+            setTimeout(function() {
+              window.location.href = WEB_APP_BASE + '?page=client&id=' + encodeURIComponent(res.clientId);
+            }, 1500);
+          } else {
+            terminate('Your signature has been submitted successfully. You can now close this page.', 'ok');
+            setTimeout(function() { window.location.reload(); }, 1500);
+          }
         })
         .withFailureHandler(function(err) {
           submitting = false;

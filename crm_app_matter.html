@@ -193,7 +193,11 @@
         google.script.run
           .withSuccessHandler(function(res) {
             if (!res || !res.ok) {
-              setSignFlowStatus('Error: ' + (res && res.error ? res.error : 'unknown'), 'err');
+              if (res && res.code === 'already_generated') {
+                setSignFlowStatus('Documents already generated for this matter. Proceed to Create Sign Links.', 'muted');
+              } else {
+                setSignFlowStatus('Error: ' + (res && (res.message || res.error) ? (res.message || res.error) : 'unknown'), 'err');
+              }
               return;
             }
             setSignFlowStatus('Agreement and POA generated successfully. Documents were added to CRM.', 'ok');
@@ -292,7 +296,12 @@
         google.script.run
           .withSuccessHandler(function(res) {
             if (!res || !res.ok) {
-              setSignFlowStatus('Error: ' + (res && res.error ? res.error : 'unknown'), 'err');
+              if (res && res.code === 'already_signed') {
+                setSignFlowStatus('Both Agreement and POA are already signed for this matter.', 'muted');
+                document.getElementById('signLinksCard').style.display = 'none';
+              } else {
+                setSignFlowStatus('Error: ' + (res && (res.message || res.error) ? (res.message || res.error) : 'unknown'), 'err');
+              }
               setSignLinksList([]);
               return;
             }

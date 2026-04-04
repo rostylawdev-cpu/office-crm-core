@@ -410,7 +410,14 @@ function crm_generateAgreementAndPoa(matterId) {
   const hasAgreement = existingDocs.some(function (d) { return (d.TYPE || "").toUpperCase() === "AGREEMENT"; });
   const hasPoa = existingDocs.some(function (d) { return (d.TYPE || "").toUpperCase() === "POA"; });
   if (hasAgreement && hasPoa) {
-    throw new Error("Documents already generated for matter " + matterId + ". Remove existing AGREEMENT and POA records before regenerating.");
+    crm_logActivity({
+      action: "DUPLICATE_DOC_BLOCKED",
+      message: "Duplicate Agreement+POA generation blocked for matter " + matterId,
+      matterId: matterId,
+      clientId: matter.CLIENT_ID || "",
+      meta: {},
+    });
+    return { ok: false, code: "already_generated", message: "Documents already generated for this matter." };
   }
 
   let matterFolderUrl = matter.FOLDER_URL;
@@ -565,15 +572,28 @@ function crm_buildPoaText(client, matter) {
 function crm_setMatterField(matterId, field, value) {
   if (!matterId || !field) throw new Error("crm_setMatterField: matterId and field are required");
 
+  const fieldTrimmed = String(field).trim();
   const ss = crm_getSpreadsheet_();
   const c = cfg_();
   const sh = ss.getSheetByName(c.SHEETS.MATTERS);
   if (!sh) throw new Error("Matters sheet not found");
 
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-  const idxMatter = headers.indexOf("MATTER_ID");
-  const idxField = headers.indexOf(field);
-  if (idxMatter === -1 || idxField === -1) throw new Error(`crm_setMatterField: field not found: ${field}`);
+  var headers = sh.getLastColumn() > 0 ? sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0] : [];
+  var idxMatter = headers.indexOf("MATTER_ID");
+  var idxField = headers.indexOf(fieldTrimmed);
+
+  // Auto-ensure: if the column is missing, run ensureHeaders_ once and retry
+  if (idxField === -1) {
+    ensureHeaders_(sh, c.HEADERS.MATTERS);
+    headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    idxMatter = headers.indexOf("MATTER_ID");
+    idxField = headers.indexOf(fieldTrimmed);
+    logInfo_("SETUP", "crm_setMatterField: auto-ensured MATTERS headers for field: " + fieldTrimmed, {});
+  }
+
+  if (idxMatter === -1 || idxField === -1) {
+    throw new Error("crm_setMatterField: field not found: \"" + fieldTrimmed + "\". Sheet headers: [" + headers.join(", ") + "]");
+  }
 
   const values = sh.getRange(2, idxMatter + 1, sh.getLastRow() - 1, 1).getValues();
   for (let i = 0; i < values.length; i++) {
@@ -901,18 +921,28 @@ function crm_submitSignature(token, dataUrlPng) {
       });
 
       crm_markSignTokenUsed(token);
+      var convertedClientId = null;
       if (entry.matterId && crm_hasBothSignedOnboardingDocs_(entry.matterId)) {
         if (entry.leadId) {
           // Signing-first: create real client now, reattach matter + docs
           const finalClientId = crm_finalizeOnboardingConversion_(entry.leadId, entry.matterId);
+          convertedClientId = finalClientId || null;
           crm_triggerNextModuleReadiness_(entry.matterId, finalClientId || entry.clientId);
         } else {
           // Legacy token without leadId: fall back to status-only conversion
           crm_safelyConvertLeadForClient(entry.clientId);
+          convertedClientId = (!crm_isProvisionalClientId_(entry.clientId) ? entry.clientId : null);
           crm_triggerNextModuleReadiness_(entry.matterId, entry.clientId);
         }
       }
-      return { ok: true, code: "success", signedPdfUrl: pkgLastPdfUrl, signatureUrl: pkgSigFile.getUrl() };
+      crm_logActivity({
+        action: "SIGNATURE_SUCCESS",
+        message: "Onboarding package signed and conversion complete. clientId: " + (convertedClientId || entry.clientId),
+        clientId: convertedClientId || entry.clientId,
+        matterId: entry.matterId,
+        meta: { token, convertedClientId },
+      });
+      return { ok: true, code: "success", matterId: entry.matterId || null, clientId: convertedClientId, signedPdfUrl: pkgLastPdfUrl, signatureUrl: pkgSigFile.getUrl() };
     }
     // ─── END ONBOARDING PACKAGE FLOW ────────────────────────────────────────
 
@@ -1112,6 +1142,24 @@ function crm_createOnboardingSignPackage_(matterId) {
 
   if (!agDoc || !poaDoc) {
     throw new Error("Generate Agreement + POA first before creating the onboarding sign link.");
+  }
+
+  // Block: both docs already signed — no new link needed
+  const agSigned  = (agDoc.STATUS  || "").toUpperCase() === "SIGNED";
+  const poaSigned = (poaDoc.STATUS || "").toUpperCase() === "SIGNED";
+  if (agSigned && poaSigned) {
+    crm_logActivity({
+      action: "DUPLICATE_SIGN_LINK_BLOCKED",
+      message: "New onboarding sign link blocked — both docs already signed for matter " + matterId,
+      matterId: matterId,
+      clientId: agDoc.CLIENT_ID || "",
+      meta: {},
+    });
+    return {
+      ok: false,
+      code: "already_signed",
+      message: "Both Agreement and POA are already signed for this matter.",
+    };
   }
 
   // Reuse existing active package token for this matter (idempotent)
