@@ -124,12 +124,12 @@ E-mail: {{OFFICE_EMAIL}}
 דוא"ל: {{OFFICE_EMAIL}}
 
 Клиент: {{CLIENT_FULL_NAME_RU}}
-Документ: {{ID_TYPE_RU}} {{ID_NUMBER}}
+Документ: {{ID_DOC_RU}}
 Адрес: {{ADDRESS_RU}}
 Тел.: {{PHONE}}
 
 הלקוח: {{CLIENT_FULL_NAME_HE}}
-מסמך מזהה: {{ID_TYPE_HE}} {{ID_NUMBER}}
+מסמך מזהה: {{ID_DOC_HE}}
 כתובת: {{ADDRESS_HE}}
 טל’: {{PHONE}}
 
@@ -177,9 +177,9 @@ E-mail: {{OFFICE_EMAIL}}
 
 const CRM_TEMPLATE_POA = `ייפוי כח / Доверенность
 
-Я, нижеподписавшийся {{CLIENT_FULL_NAME_RU}}, документ: {{ID_TYPE_RU}} {{ID_NUMBER}}, настоящим уполномочиваю адвокатов: {{LAWYERS_RU}}, действующих от имени адвокатского офиса {{LAW_OFFICE_RU}}, представлять мои интересы в {{AUTHORITY_RU}}.
+{{POA_MANDATE_RU}}
 
-אני הח"מ {{CLIENT_FULL_NAME_HE}}, ת"ז {{ID_NUMBER}}, ממנה בזה את עורכי הדין: {{LAWYERS_HE}} ממשרד {{LAW_OFFICE_HE}}, להיות באי כוחי ב{{AUTHORITY_HE}} {{BL_CONTEXT_HE}}.
+{{POA_MANDATE_HE}}
 
 1. Подписывать и подавать любые иски или встречные иски и/или любые ходатайства, возражения, заявления о защите, возражения, апелляции, уведомления, или любые иные процессуальные действия.
 2. Запрашивать и получать медицинскую документацию у любого врача и/или медицинского учреждения.
@@ -210,6 +210,21 @@ const CRM_TEMPLATE_POA = `ייפוי כח / Доверенность
 Подпись адвоката / חתימה עו"ד:________________________________________
 {{LAWYER_CONFIRM_RU}} / {{LAWYER_CONFIRM_HE}}`;
 
+// REQUIRED Script Properties for legal document generation.
+// Set via Apps Script editor → Project Settings → Script Properties.
+// Without these the POA mandate sentence will have placeholders/blanks:
+//   OFFICE_NAME_RU        — office name in Russian  (e.g. "Адвокатское бюро Иванова")
+//   OFFICE_NAME_HE        — office name in Hebrew   (e.g. "משרד עו\"ד כהן")
+//   OFFICE_ADDRESS        — office address in Russian (also read as OFFICE_ADDRESS_RU)
+//   OFFICE_ADDRESS_HE     — office address in Hebrew
+//   OFFICE_PHONE          — phone number
+//   OFFICE_EMAIL          — email address
+//   LAWYERS_RU            — lawyer names in Russian (e.g. "А. Иванов, М. Петрова") ← CRITICAL for POA
+//   LAWYERS_HE            — lawyer names in Hebrew  (e.g. "א. כהן, מ. לוי")           ← CRITICAL for POA
+//   LAW_OFFICE_RU         — firm name in Russian (defaults to OFFICE_NAME_RU if not set)
+//   LAW_OFFICE_HE         — firm name in Hebrew  (defaults to OFFICE_NAME_HE if not set)
+//   LAWYER_CONFIRM_RU     — optional: confirmation line (has safe default)
+//   LAWYER_CONFIRM_HE     — optional: confirmation line (has safe default)
 function crm_getOfficeProfile() {
   const props = PropertiesService.getScriptProperties();
   const nameRu = String(props.getProperty("OFFICE_NAME_RU") || props.getProperty("OFFICE_NAME") || "").trim();
@@ -310,6 +325,52 @@ function crm_buildTemplateData(client, matter) {
       : "(בקשר לתאונת עבודה, לרבות זכויות מול המוסד לביטוח לאומי)";
   }
 
+  // ── Safe composites ────────────────────────────────────────────────────────
+  // These collapse empty ID_TYPE / lawyer / authority values so the output does
+  // not contain dangling commas or fragments like "документ: ," or "в .".
+
+  // ID_DOC_RU / ID_DOC_HE: joins ID_TYPE label + ID_NUMBER, skipping empties.
+  var idDocRu = [idTypeRu, clientIdNumberFinal].filter(Boolean).join(" ");
+  var idDocHe = [idTypeHe, clientIdNumberFinal].filter(Boolean).join(" ");
+
+  // POA_MANDATE_RU: full Russian mandate sentence, safe when office props missing.
+  var poaMandateRu = (function () {
+    var nameP = String(client.FULL_NAME || "").trim();
+    var idP   = idDocRu ? ", документ: " + idDocRu : "";
+    var lawyersOfficeP = "";
+    if (office.LAWYERS_RU && office.LAW_OFFICE_RU) {
+      lawyersOfficeP = "адвокатов: " + office.LAWYERS_RU +
+        ", действующих от имени адвокатского офиса " + office.LAW_OFFICE_RU;
+    } else if (office.LAWYERS_RU) {
+      lawyersOfficeP = "адвокатов: " + office.LAWYERS_RU;
+    } else if (office.LAW_OFFICE_RU) {
+      lawyersOfficeP = "адвокатского офиса " + office.LAW_OFFICE_RU;
+    }
+    var mandateP = lawyersOfficeP ? "настоящим уполномочиваю " + lawyersOfficeP : "настоящим уполномочиваю";
+    var authorityP = authorityRu ? ", представлять мои интересы в " + authorityRu : "";
+    return "Я, нижеподписавшийся " + nameP + idP + ", " + mandateP + authorityP + ".";
+  })();
+
+  // POA_MANDATE_HE: full Hebrew mandate sentence, safe when office props missing.
+  var poaMandateHe = (function () {
+    var nameP  = String(client.FULL_NAME || "").trim();
+    var idNumP = clientIdNumberFinal ? ', ת"ז ' + clientIdNumberFinal : "";
+    var lawyersOfficeP = "";
+    if (office.LAWYERS_HE && office.LAW_OFFICE_HE) {
+      lawyersOfficeP = "ממנה בזה את עורכי הדין: " + office.LAWYERS_HE + " ממשרד " + office.LAW_OFFICE_HE;
+    } else if (office.LAWYERS_HE) {
+      lawyersOfficeP = "ממנה בזה את עורכי הדין: " + office.LAWYERS_HE;
+    } else if (office.LAW_OFFICE_HE) {
+      lawyersOfficeP = "ממנה בזה ממשרד " + office.LAW_OFFICE_HE;
+    } else {
+      lawyersOfficeP = "ממנה בזה";
+    }
+    var authP   = authorityHe ? "ב" + authorityHe : "";
+    var authBlP = [authP, blContextHe].filter(Boolean).join(" ");
+    var representP = "להיות באי כוחי" + (authBlP ? " " + authBlP : "");
+    return 'אני הח"מ ' + nameP + idNumP + ", " + lawyersOfficeP + ", " + representP + ".";
+  })();
+
   return {
     // No fake fallback — empty string is safer than "Client" in a legal document.
     CLIENT_FULL_NAME: String(client.FULL_NAME || "").trim(),
@@ -367,6 +428,12 @@ function crm_buildTemplateData(client, matter) {
     LAWYER_CONFIRM_HE: office.LAWYER_CONFIRM_HE,
 
     BL_CONTEXT_HE: blContextHe,
+
+    // Composites — used by templates to avoid broken fragments when fields are empty
+    ID_DOC_RU: idDocRu,
+    ID_DOC_HE: idDocHe,
+    POA_MANDATE_RU: poaMandateRu,
+    POA_MANDATE_HE: poaMandateHe,
   };
 }
 
@@ -445,6 +512,20 @@ function crm_generateAgreementAndPoa(matterId) {
 
   const folderId = extractFolderIdFromUrl_(matter.FOLDER_URL || "") || extractFolderIdFromUrl_(client.FOLDER_URL);
   if (!folderId) throw new Error("Could not resolve drive folder ID for matter/client");
+
+  // PART 5: Debug log — surface missing office profile fields before generation
+  var office_ = crm_getOfficeProfile();
+  var missingProps = [];
+  if (!office_.LAWYERS_RU && !office_.LAWYERS_HE) missingProps.push("LAWYERS_RU / LAWYERS_HE");
+  if (!office_.LAW_OFFICE_RU && !office_.LAW_OFFICE_HE) missingProps.push("LAW_OFFICE_RU / LAW_OFFICE_HE");
+  if (!office_.OFFICE_NAME && !office_.OFFICE_NAME_HE) missingProps.push("OFFICE_NAME_RU / OFFICE_NAME_HE");
+  logInfo_("GENDOC", "Generating Agreement+POA: matterId=" + matterId +
+    " clientId=" + client.CLIENT_ID +
+    " clientName=" + (client.FULL_NAME || "(empty)") +
+    " idNumber=" + (String(client.ID_NUMBER || "").trim() || "(empty)") +
+    " authority=" + (matter.AUTHORITY || "(empty)") +
+    " folderId=" + folderId +
+    (missingProps.length ? " | MISSING_PROPS=[" + missingProps.join(", ") + "]" : ""), {});
 
   const createdDocs = [];
 

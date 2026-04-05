@@ -320,13 +320,22 @@
 
       google.script.run
         .withSuccessHandler(function (data) {
-          renderStats(data || {});
-          renderCards(data || {});
+          console.log('[dashboard] crm_getWebAppDashboard response:', data);
+          if (!data || !data.ok) {
+            var msg = (data && data.error) ? data.error : 'Server returned no data. Check Apps Script logs.';
+            document.getElementById("stats").innerHTML =
+              '<div class="card"><div class="meta">Dashboard unavailable: ' + esc(msg) + '</div></div>';
+            document.getElementById("cards").innerHTML = "";
+            return;
+          }
+          renderStats(data);
+          renderCards(data);
         })
         .withFailureHandler(function (err) {
+          console.error('[dashboard] crm_getWebAppDashboard failure:', err);
           document.getElementById("stats").innerHTML =
             '<div class="card"><div class="meta">Dashboard error: ' +
-            esc(err && err.message ? err.message : err) +
+            esc(err && err.message ? err.message : String(err)) +
             '</div></div>';
 
           document.getElementById("cards").innerHTML = "";

@@ -49,7 +49,7 @@
           <div class="row">
             <div class="k">Event Date</div>
             <div class="v">
-              <span id="eventDateDisplay"><?= card.matter.EVENT_DATE || "" ?></span>
+              <span id="eventDateDisplay"><?= card.matter.EVENT_DATE_DISPLAY || card.matter.EVENT_DATE || "" ?></span>
               <input type="date" id="eventDateInput" value="<?= card.matter.EVENT_DATE || "" ?>" style="display:none;border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:13px;">
               <button id="eventDateEditBtn" onclick="startEditEventDate()" style="margin-left:6px;padding:2px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:6px;background:#f3f4f6;cursor:pointer;">Edit</button>
               <button id="eventDateSaveBtn" onclick="saveEventDate()" style="display:none;margin-left:4px;padding:2px 8px;font-size:12px;border:0;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;">Save</button>
@@ -164,7 +164,13 @@
 
         google.script.run
           .withSuccessHandler(function() {
-            document.getElementById('eventDateDisplay').textContent = val;
+            // Convert YYYY-MM-DD → DD.MM.YYYY for the display label
+            var display = val;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+              var p = val.split('-');
+              display = p[2] + '.' + p[1] + '.' + p[0];
+            }
+            document.getElementById('eventDateDisplay').textContent = display;
             statusEl.textContent = 'Saved';
             statusEl.style.color = '#065f46';
             document.getElementById('eventDateSaveBtn').disabled = false;
@@ -313,10 +319,32 @@
               return;
             }
 
+            // Check for known terminal states returned inside the links array
+            if (res.links.length === 1 && !res.links[0].ok) {
+              var firstLink = res.links[0];
+              if (firstLink.code === 'already_signed') {
+                setSignFlowStatus('Agreement and POA are already signed for this matter.', 'muted');
+                document.getElementById('signLinksCard').style.display = 'none';
+                setSignLinksList([]);
+                return;
+              }
+              if (firstLink.code === 'already_generated') {
+                setSignFlowStatus('Agreement and POA already exist. Signing link not needed — documents already signed.', 'muted');
+                document.getElementById('signLinksCard').style.display = 'none';
+                setSignLinksList([]);
+                return;
+              }
+            }
+
             var anyFailed = res.links.some(function(l) { return !l.ok; });
             if (anyFailed) {
-              setSignFlowStatus('Some signing links failed to generate. Please retry.', 'err');
-              setSignLinksList(res.links);
+              // Show per-link errors with context rather than a generic message
+              var errMsg = res.links
+                .filter(function(l) { return !l.ok; })
+                .map(function(l) { return l.message || l.error || 'unknown error'; })
+                .join('; ');
+              setSignFlowStatus('Could not create sign link: ' + errMsg, 'err');
+              setSignLinksList([]);
               return;
             }
 
