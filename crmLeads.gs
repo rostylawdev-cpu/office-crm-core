@@ -34,6 +34,14 @@ function crm_addLead(input) {
     ID_TYPE: crm_normalizeIdType_(input?.idType ?? ""),
     ID_NUMBER: (input?.idNumber ?? "").trim(),
     ADDRESS: (input?.address ?? "").trim(),
+    ADDRESS_RU: (input?.addressRu ?? input?.address ?? "").trim(),
+    ADDRESS_HE: (input?.addressHe ?? "").trim(),
+    FULL_NAME_RU: (input?.fullNameRu ?? fullName).trim(),
+    FULL_NAME_HE: (input?.fullNameHe ?? "").trim(),
+    SUBJECT_RU: (input?.subjectRu ?? "").trim(),
+    SUBJECT_HE: (input?.subjectHe ?? "").trim(),
+    // Only stored when user explicitly enters it; never derived from CREATED_AT
+    EVENT_DATE: (input?.eventDate ?? "").trim(),
   };
 
   const row = appendRowByHeaders_(sh, c.HEADERS.LEADS, rowObj);

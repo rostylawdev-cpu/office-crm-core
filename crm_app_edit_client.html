@@ -44,6 +44,14 @@
             <input id="fullName" name="fullName" type="text" required value="<?= client.FULL_NAME || '' ?>" />
           </div>
           <div class="form-group">
+            <label for="fullNameRu">Full Name in Russian / Полное имя на русском</label>
+            <input id="fullNameRu" name="fullNameRu" type="text" value="<?= client.FULL_NAME_RU || client.FULL_NAME || '' ?>" placeholder="Иванов Иван Иванович" />
+          </div>
+          <div class="form-group">
+            <label for="fullNameHe">Full Name in Hebrew / שם מלא בעברית</label>
+            <input id="fullNameHe" name="fullNameHe" type="text" value="<?= client.FULL_NAME_HE || '' ?>" placeholder="איוון איוואנוב" dir="rtl" />
+          </div>
+          <div class="form-group">
             <label for="phone">Phone *</label>
             <input id="phone" name="phone" type="text" required value="<?= client.PHONE || '' ?>" />
           </div>
@@ -82,6 +90,15 @@
             <input id="source" name="source" type="text" value="<?= client.SOURCE || '' ?>" />
           </div>
 
+          <div class="form-group">
+            <label for="addressRu">Address in Russian / Адрес на русском</label>
+            <input id="addressRu" name="addressRu" type="text" value="<?= client.ADDRESS_RU || client.ADDRESS || '' ?>" placeholder="ул. Ленина 1, Тель-Авив" />
+          </div>
+          <div class="form-group">
+            <label for="addressHe">Address in Hebrew / כתובת בעברית</label>
+            <input id="addressHe" name="addressHe" type="text" value="<?= client.ADDRESS_HE || '' ?>" placeholder="רחוב הרצל 1, תל אביב" dir="rtl" />
+          </div>
+
           <button type="submit">Save Client</button>
         </form>
       </div>
@@ -110,6 +127,8 @@
         const payload = {
           clientId: CLIENT_ID,
           fullName: fullName,
+          fullNameRu: document.getElementById('fullNameRu').value.trim(),
+          fullNameHe: document.getElementById('fullNameHe').value.trim(),
           phone: phone,
           email: document.getElementById('email').value.trim(),
           idType: document.getElementById('idType').value.trim(),
@@ -117,6 +136,8 @@
           status: document.getElementById('status').value.trim(),
           owner: document.getElementById('owner').value.trim(),
           source: document.getElementById('source').value.trim(),
+          addressRu: document.getElementById('addressRu').value.trim(),
+          addressHe: document.getElementById('addressHe').value.trim(),
         };
 
         showMessage('success', 'Updating client...');

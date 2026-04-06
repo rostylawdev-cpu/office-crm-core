@@ -35,6 +35,8 @@ const CFG = {
       "SOURCE",
       "CAMPAIGN",
       "FULL_NAME",
+      "FULL_NAME_RU",
+      "FULL_NAME_HE",
       "PHONE",
       "EMAIL",
       "CASE_TYPE",
@@ -46,11 +48,18 @@ const CFG = {
       "ID_TYPE",
       "ID_NUMBER",
       "ADDRESS",
+      "ADDRESS_RU",
+      "ADDRESS_HE",
+      "SUBJECT_RU",
+      "SUBJECT_HE",
+      "EVENT_DATE",
     ],
 
     CLIENTS: [
       "CLIENT_ID",
       "FULL_NAME",
+      "FULL_NAME_RU",
+      "FULL_NAME_HE",
       "PHONE",
       "EMAIL",
       "ID_NUMBER",
@@ -68,6 +77,8 @@ const CFG = {
       "PAYMENT_NOTE",
       "ID_TYPE",
       "ADDRESS",
+      "ADDRESS_RU",
+      "ADDRESS_HE",
     ],
 
     MATTERS: [
@@ -85,6 +96,8 @@ const CFG = {
       "LAST_ACTIVITY_AT",
       "SUMMARY_SHORT",
       "EVENT_DATE",
+      "SUBJECT_RU",
+      "SUBJECT_HE",
     ],
 
     DOCUMENTS: [

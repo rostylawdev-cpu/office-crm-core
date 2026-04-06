@@ -335,7 +335,7 @@ function crm_buildTemplateData(client, matter) {
 
   // POA_MANDATE_RU: full Russian mandate sentence, safe when office props missing.
   var poaMandateRu = (function () {
-    var nameP = String(client.FULL_NAME || "").trim();
+    var nameP = String(client.FULL_NAME_RU || client.FULL_NAME || "").trim();
     var idP   = idDocRu ? ", документ: " + idDocRu : "";
     var lawyersOfficeP = "";
     if (office.LAWYERS_RU && office.LAW_OFFICE_RU) {
@@ -353,7 +353,7 @@ function crm_buildTemplateData(client, matter) {
 
   // POA_MANDATE_HE: full Hebrew mandate sentence, safe when office props missing.
   var poaMandateHe = (function () {
-    var nameP  = String(client.FULL_NAME || "").trim();
+    var nameP  = String(client.FULL_NAME_HE || client.FULL_NAME || "").trim();
     var idNumP = clientIdNumberFinal ? ', ת"ז ' + clientIdNumberFinal : "";
     var lawyersOfficeP = "";
     if (office.LAWYERS_HE && office.LAW_OFFICE_HE) {
@@ -389,8 +389,9 @@ function crm_buildTemplateData(client, matter) {
     MATTER_AUTHORITY: authorityHe,
     MATTER_SUBJECT: String(matter.SUMMARY_SHORT || matter.TITLE || "").trim(),
 
-    SUBJECT_RU: String(matter.SUMMARY_SHORT || matter.TITLE || matter.CATEGORY || "").trim(),
-    SUBJECT_HE: String(matter.SUMMARY_SHORT_HE || matter.TITLE || matter.CATEGORY || "").trim(),
+    // Prefer dedicated bilingual subject fields; fall back to SUMMARY_SHORT/TITLE
+    SUBJECT_RU: String(matter.SUBJECT_RU || matter.SUMMARY_SHORT || matter.TITLE || matter.CATEGORY || "").trim(),
+    SUBJECT_HE: String(matter.SUBJECT_HE || matter.SUMMARY_SHORT_HE || matter.TITLE || "").trim(),
 
     AUTHORITY_RU: authorityRu,
     AUTHORITY_HE: authorityHe,
@@ -412,12 +413,13 @@ function crm_buildTemplateData(client, matter) {
     OFFICE_NAME_HE: office.OFFICE_NAME_HE,
     OFFICE_ADDRESS_HE: office.OFFICE_ADDRESS_HE,
 
-    CLIENT_FULL_NAME_RU: String(client.FULL_NAME || "").trim(),
-    CLIENT_FULL_NAME_HE: String(client.FULL_NAME || "").trim(),
+    // Prefer stored bilingual fields; fall back to FULL_NAME/ADDRESS when not set
+    CLIENT_FULL_NAME_RU: String(client.FULL_NAME_RU || client.FULL_NAME || "").trim(),
+    CLIENT_FULL_NAME_HE: String(client.FULL_NAME_HE || client.FULL_NAME || "").trim(),
     ID_TYPE_RU: idTypeRu,
     ID_TYPE_HE: idTypeHe,
-    ADDRESS_RU: String(client.ADDRESS || "").trim(),
-    ADDRESS_HE: String(client.ADDRESS || "").trim(),
+    ADDRESS_RU: String(client.ADDRESS_RU || client.ADDRESS || "").trim(),
+    ADDRESS_HE: String(client.ADDRESS_HE || client.ADDRESS || "").trim(),
 
     LAWYERS_RU: office.LAWYERS_RU,
     LAWYERS_HE: office.LAWYERS_HE,
@@ -820,9 +822,10 @@ function crm_createSignLinkForDocument(docId) {
 function crm_createSignLinksForMatter(matterId) {
   if (!matterId) throw new Error("crm_createSignLinksForMatter: matterId is required");
 
-  // For ONBOARDING matters: one package link covers Agreement + POA
-  const matter = crm_getMatterById(matterId);
-  if (matter && (matter.STAGE || "").toUpperCase() === "ONBOARDING") {
+  // Package path: whenever the matter already has both AGREEMENT + POA docs,
+  // always issue ONE combined sign link (regardless of stage).
+  // This prevents per-doc fallback even for non-ONBOARDING stages (e.g. DOCUMENTS_GENERATED).
+  if (crm_hasAgreementPackage_(matterId)) {
     try {
       const pkg = crm_createOnboardingSignPackage_(matterId);
       return { ok: true, matterId, links: [pkg] };
@@ -831,14 +834,13 @@ function crm_createSignLinksForMatter(matterId) {
     }
   }
 
-  // Non-onboarding: per-document links (unchanged)
+  // No Agreement+POA package yet: per-document links for individual docs
   const docs = crm_listDocumentsByMatterId(matterId, { limit: 100 });
   const links = docs
-    .filter((d) => ["AGREEMENT", "POA"].includes((d.TYPE || "").toUpperCase()))
-    .map((d) => {
+    .filter(function(d) { return ["AGREEMENT", "POA"].includes((d.TYPE || "").toUpperCase()); })
+    .map(function(d) {
       try {
-        const res = crm_createSignLinkForDocument(d.DOC_ID);
-        return res;
+        return crm_createSignLinkForDocument(d.DOC_ID);
       } catch (e) {
         return { ok: false, error: e.message, docId: d.DOC_ID };
       }

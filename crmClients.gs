@@ -53,6 +53,10 @@ function crm_addClient(input) {
     OWNER: String(input?.owner ?? getActiveUserEmail_()).trim(),
     SOURCE: String(input?.source ?? "").trim(),
     ADDRESS: String(input?.address ?? "").trim(),
+    FULL_NAME_RU: String(input?.fullNameRu ?? fullName).trim(),
+    FULL_NAME_HE: String(input?.fullNameHe ?? "").trim(),
+    ADDRESS_RU: String(input?.addressRu ?? input?.address ?? "").trim(),
+    ADDRESS_HE: String(input?.addressHe ?? "").trim(),
     FOLDER_URL: folderUrl || "",
     CREATED_AT: ts,
     UPDATED_AT: ts,
@@ -234,6 +238,8 @@ function crm_updateClient(clientId, updates) {
 
   const fieldValues = {
     FULL_NAME: updates.fullName,
+    FULL_NAME_RU: updates.fullNameRu,
+    FULL_NAME_HE: updates.fullNameHe,
     PHONE: updates.phone,
     EMAIL: updates.email,
     ID_NUMBER: updates.idNumber,
@@ -242,6 +248,9 @@ function crm_updateClient(clientId, updates) {
     STATUS: updates.status,
     OWNER: updates.owner,
     SOURCE: updates.source,
+    ADDRESS: updates.address,
+    ADDRESS_RU: updates.addressRu,
+    ADDRESS_HE: updates.addressHe,
   };
 
   let changed = false;

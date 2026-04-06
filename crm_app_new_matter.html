@@ -75,8 +75,30 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Title</label>
-            <input name="TITLE" required>
+            <label>Subject / Суть дела (Russian)</label>
+            <select id="subjectRuPreset" onchange="applySubjectPreset()">
+              <option value="">-- Preset or type below --</option>
+              <option value="сопровождение в Битуах Леуми: производственная травма">сопровождение в Битуах Леуми: производственная травма</option>
+              <option value="представление интересов в суде по трудовому спору">представление интересов в суде по трудовому спору</option>
+              <option value="помощь в возврате подоходного налога">помощь в возврате подоходного налога</option>
+              <option value="заявление на возмещение долга Битуах Леуми">заявление на возмещение долга Битуах Леуми</option>
+            </select>
+            <input name="SUBJECT_RU" id="subjectRuInput" placeholder="Суть дела на русском" style="margin-top:6px;">
+          </div>
+          <div class="form-group">
+            <label>Subject / מהות העניין (Hebrew)</label>
+            <select id="subjectHePreset" onchange="applySubjectPresetHe()">
+              <option value="">-- Preset or type below --</option>
+              <option value="טיפול בביטוח לאומי תאונת עבודה">טיפול בביטוח לאומי תאונת עבודה</option>
+              <option value="ייצוג בבית הדין לעבודה">ייצוג בבית הדין לעבודה</option>
+              <option value="סיוע בעניין החזר מס">סיוע בעניין החזר מס</option>
+              <option value="תביעת חוב ביטוח לאומי">תביעת חוב ביטוח לאומי</option>
+            </select>
+            <input name="SUBJECT_HE" id="subjectHeInput" placeholder="מהות העניין בעברית" dir="rtl" style="margin-top:6px;">
+          </div>
+          <div class="form-group">
+            <label>Title <span style="font-weight:400;color:#9ca3af;">(auto-filled from subject if blank)</span></label>
+            <input name="TITLE" id="titleInput" placeholder="Short matter title">
           </div>
           <div class="form-group">
             <button type="submit" id="newMatterSubmit">Create Matter</button>
@@ -91,6 +113,15 @@
       const SOURCE_ID = "<?= entityId ?>";
       const CATEGORIES = ["WORK_ACCIDENT", "LABOR_DISPUTE", "GENERAL", "EMPLOYMENT", "OTHER"];
       const AUTHORITIES = ["LABOR_COURT", "NATIONAL_LABOR_COURT", "LABOR_INSURANCE", "EMPLOYER", "OTHER"];
+
+      function applySubjectPreset() {
+        const val = document.getElementById('subjectRuPreset').value;
+        if (val) document.getElementById('subjectRuInput').value = val;
+      }
+      function applySubjectPresetHe() {
+        const val = document.getElementById('subjectHePreset').value;
+        if (val) document.getElementById('subjectHeInput').value = val;
+      }
 
       function setClientId(clientId) {
         document.getElementById("clientIdInput").value = clientId;
@@ -176,11 +207,20 @@
         const category = e.target.CATEGORY.value.trim();
         const authority = e.target.AUTHORITY.value.trim();
         const owner = e.target.OWNER.value.trim();
-        const title = e.target.TITLE.value.trim();
+        const subjectRu = document.getElementById('subjectRuInput').value.trim();
+        const subjectHe = document.getElementById('subjectHeInput').value.trim();
+        // Auto-fill TITLE from subject if blank
+        const titleInput = document.getElementById('titleInput');
+        const title = titleInput.value.trim() || subjectRu || subjectHe || "";
 
         if (!clientId) {
           statusEl.className = "status error";
           statusEl.textContent = "CLIENT_ID is required";
+          return;
+        }
+        if (!title) {
+          statusEl.className = "status error";
+          statusEl.textContent = "Subject or title is required";
           return;
         }
 
@@ -195,6 +235,8 @@
           AUTHORITY: authority,
           OWNER: owner,
           TITLE: title,
+          SUBJECT_RU: subjectRu,
+          SUBJECT_HE: subjectHe,
           EVENT_DATE: (document.getElementById('eventDateInput').value || "").trim(),
           sourceLeadId: SOURCE_ID || ""
         };

@@ -30,8 +30,16 @@
         <div id="sourceInfo" class="info" style="display:none;"></div>
         <form id="newClientForm">
           <div class="form-group">
-            <label>Full Name</label>
-            <input name="FULL_NAME" required>
+            <label>Full Name (primary)</label>
+            <input name="FULL_NAME" required placeholder="Full name">
+          </div>
+          <div class="form-group">
+            <label>Full Name in Russian / Полное имя на русском</label>
+            <input name="FULL_NAME_RU" placeholder="Иванов Иван Иванович">
+          </div>
+          <div class="form-group">
+            <label>Full Name in Hebrew / שם מלא בעברית</label>
+            <input name="FULL_NAME_HE" placeholder="איוון איוואנוב" dir="rtl">
           </div>
           <div class="form-group">
             <label>ID Type</label>
@@ -50,8 +58,12 @@
             <input name="PHONE">
           </div>
           <div class="form-group">
-            <label>Address</label>
-            <input name="ADDRESS">
+            <label>Address in Russian / Адрес на русском</label>
+            <input name="ADDRESS_RU" placeholder="ул. Ленина 1, Тель-Авив">
+          </div>
+          <div class="form-group">
+            <label>Address in Hebrew / כתובת בעברית</label>
+            <input name="ADDRESS_HE" placeholder="רחוב הרצל 1, תל אביב" dir="rtl">
           </div>
           <div class="form-group">
             <button type="submit" id="newClientSubmit">Create Client</button>
@@ -108,6 +120,18 @@
                 if (leadInfo.lead.ID_NUMBER) {
                   document.querySelector('input[name="ID_NUMBER"]').value = leadInfo.lead.ID_NUMBER;
                 }
+                if (leadInfo.lead.FULL_NAME_RU) {
+                  document.querySelector('input[name="FULL_NAME_RU"]').value = leadInfo.lead.FULL_NAME_RU;
+                }
+                if (leadInfo.lead.FULL_NAME_HE) {
+                  document.querySelector('input[name="FULL_NAME_HE"]').value = leadInfo.lead.FULL_NAME_HE;
+                }
+                if (leadInfo.lead.ADDRESS_RU) {
+                  document.querySelector('input[name="ADDRESS_RU"]').value = leadInfo.lead.ADDRESS_RU;
+                }
+                if (leadInfo.lead.ADDRESS_HE) {
+                  document.querySelector('input[name="ADDRESS_HE"]').value = leadInfo.lead.ADDRESS_HE;
+                }
               }
             }
           })
@@ -126,12 +150,21 @@
         statusEl.className = "status";
         statusEl.innerHTML = "";
 
+        const fullName = String(e.target.FULL_NAME.value ?? "").trim();
+        const fullNameRu = String(e.target.FULL_NAME_RU.value ?? "").trim();
+        const fullNameHe = String(e.target.FULL_NAME_HE.value ?? "").trim();
+        const addressRu = String(e.target.ADDRESS_RU.value ?? "").trim();
+        const addressHe = String(e.target.ADDRESS_HE.value ?? "").trim();
         const data = {
-          FULL_NAME: String(e.target.FULL_NAME.value ?? "").trim(),
+          FULL_NAME: fullName,
+          FULL_NAME_RU: fullNameRu || fullName,
+          FULL_NAME_HE: fullNameHe,
           ID_TYPE: String(e.target.ID_TYPE.value ?? "").trim(),
           ID_NUMBER: String(e.target.ID_NUMBER.value ?? "").trim(),
           PHONE: String(e.target.PHONE.value ?? "").trim(),
-          ADDRESS: String(e.target.ADDRESS.value ?? "").trim(),
+          ADDRESS: addressRu || addressHe,
+          ADDRESS_RU: addressRu,
+          ADDRESS_HE: addressHe,
           sourceLeadId: String(SOURCE_ID ?? "").trim()
         };
 

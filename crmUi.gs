@@ -359,12 +359,19 @@ function crm_getWebAppUrl_(page, id) {
 function crm_webCreateLead(data) {
   const input = {
     fullName: data.FULL_NAME,
+    fullNameRu: String(data.FULL_NAME_RU || data.FULL_NAME || "").trim(),
+    fullNameHe: String(data.FULL_NAME_HE || "").trim(),
     phone: data.PHONE,
     source: data.SOURCE,
     caseType: data.CASE_TYPE,
     idType: String(data.ID_TYPE || "").trim(),
     idNumber: String(data.ID_NUMBER || "").trim(),
     address: String(data.ADDRESS || "").trim(),
+    addressRu: String(data.ADDRESS_RU || data.ADDRESS || "").trim(),
+    addressHe: String(data.ADDRESS_HE || "").trim(),
+    subjectRu: String(data.SUBJECT_RU || "").trim(),
+    subjectHe: String(data.SUBJECT_HE || "").trim(),
+    eventDate: String(data.EVENT_DATE || "").trim(),
   };
   const result = crm_addLead(input);
   return { id: result.leadId };
@@ -406,9 +413,14 @@ function crm_webGetLeadInfo(leadId) {
 function crm_webCreateClient(data) {
   const input = {
     fullName: String(data.FULL_NAME ?? "").trim(),
+    fullNameRu: String(data.FULL_NAME_RU || data.FULL_NAME || "").trim(),
+    fullNameHe: String(data.FULL_NAME_HE ?? "").trim(),
     phone: String(data.PHONE ?? "").trim(),
     idNumber: String(data.ID_NUMBER ?? "").trim(),
     idType: String(data.ID_TYPE ?? "").trim(),
+    address: String(data.ADDRESS ?? "").trim(),
+    addressRu: String(data.ADDRESS_RU || data.ADDRESS || "").trim(),
+    addressHe: String(data.ADDRESS_HE ?? "").trim(),
   };
 
   // If sourceLeadId provided, check if lead already has linked client
@@ -440,6 +452,8 @@ function crm_webUpdateClient(data) {
 
   const input = {
     fullName: data.fullName,
+    fullNameRu: data.fullNameRu,
+    fullNameHe: data.fullNameHe,
     phone: data.phone,
     email: data.email,
     idNumber: data.idNumber,
@@ -448,6 +462,9 @@ function crm_webUpdateClient(data) {
     status: data.status,
     owner: data.owner,
     source: data.source,
+    address: data.address,
+    addressRu: data.addressRu,
+    addressHe: data.addressHe,
   };
 
   const result = crm_updateClient(data.clientId, input);
@@ -482,6 +499,8 @@ function crm_webCreateMatter(data) {
     authority: data.AUTHORITY,
     owner: data.OWNER,
     eventDate: String(data.EVENT_DATE || "").trim(),
+    subjectRu: String(data.SUBJECT_RU || "").trim(),
+    subjectHe: String(data.SUBJECT_HE || "").trim(),
   };
   const result = crm_createMatter(input);
   return { id: result.matterId };

@@ -29,8 +29,16 @@
         <h1>New Lead</h1>
         <form id="newLeadForm">
           <div class="form-group">
-            <label>Full Name</label>
-            <input name="FULL_NAME" required>
+            <label>Full Name (primary / primary)</label>
+            <input name="FULL_NAME" required placeholder="Full name (primary)">
+          </div>
+          <div class="form-group">
+            <label>Full Name in Russian / Полное имя на русском</label>
+            <input name="FULL_NAME_RU" placeholder="Иванов Иван Иванович">
+          </div>
+          <div class="form-group">
+            <label>Full Name in Hebrew / שם מלא בעברית</label>
+            <input name="FULL_NAME_HE" placeholder="איוון איוואנוב" dir="rtl">
           </div>
           <div class="form-group">
             <label>Phone</label>
@@ -42,7 +50,14 @@
           </div>
           <div class="form-group">
             <label>Case Type</label>
-            <input name="CASE_TYPE">
+            <select name="CASE_TYPE">
+              <option value="">-- Select Case Type --</option>
+              <option value="WORK_ACCIDENT">Work Accident / תאונת עבודה</option>
+              <option value="LABOR_DISPUTE">Labor Dispute / סכסוך עבודה</option>
+              <option value="GENERAL">General / כללי</option>
+              <option value="EMPLOYMENT">Employment / העסקה</option>
+              <option value="OTHER">Other / אחר</option>
+            </select>
           </div>
           <div class="form-group">
             <label>ID Type</label>
@@ -57,8 +72,24 @@
             <input name="ID_NUMBER">
           </div>
           <div class="form-group">
-            <label>Address</label>
-            <input name="ADDRESS" placeholder="Street, city">
+            <label>Address in Russian / Адрес на русском</label>
+            <input name="ADDRESS_RU" placeholder="ул. Ленина 1, Тель-Авив">
+          </div>
+          <div class="form-group">
+            <label>Address in Hebrew / כתובת בעברית</label>
+            <input name="ADDRESS_HE" placeholder="רחוב הרצל 1, תל אביב" dir="rtl">
+          </div>
+          <div class="form-group">
+            <label>Subject / Суть дела (Russian)</label>
+            <input name="SUBJECT_RU" placeholder="напр. сопровождение в Битуах Леуми: производственная травма">
+          </div>
+          <div class="form-group">
+            <label>Subject / מהות העניין (Hebrew)</label>
+            <input name="SUBJECT_HE" placeholder="לדוג׳ טיפול בביטוח לאומי תאונת עבודה" dir="rtl">
+          </div>
+          <div class="form-group">
+            <label>Event / Accident Date <span style="font-weight:400;color:#9ca3af;">(if applicable)</span></label>
+            <input type="date" name="EVENT_DATE">
           </div>
           <div class="form-group">
             <button type="submit" id="newLeadSubmit">Create Lead</button>
@@ -81,14 +112,26 @@
         statusEl.className = "status";
         statusEl.innerHTML = "";
 
+        const fullName = e.target.FULL_NAME.value.trim();
+        const fullNameRu = e.target.FULL_NAME_RU.value.trim();
+        const fullNameHe = e.target.FULL_NAME_HE.value.trim();
+        const addressRu = e.target.ADDRESS_RU.value.trim();
+        const addressHe = e.target.ADDRESS_HE.value.trim();
         const data = {
-          FULL_NAME: e.target.FULL_NAME.value.trim(),
+          FULL_NAME: fullName,
+          FULL_NAME_RU: fullNameRu || fullName,
+          FULL_NAME_HE: fullNameHe,
           PHONE: e.target.PHONE.value.trim(),
           SOURCE: e.target.SOURCE.value.trim(),
           CASE_TYPE: e.target.CASE_TYPE.value.trim(),
           ID_TYPE: e.target.ID_TYPE.value.trim(),
           ID_NUMBER: e.target.ID_NUMBER.value.trim(),
-          ADDRESS: e.target.ADDRESS.value.trim()
+          ADDRESS: addressRu || addressHe,
+          ADDRESS_RU: addressRu,
+          ADDRESS_HE: addressHe,
+          SUBJECT_RU: e.target.SUBJECT_RU.value.trim(),
+          SUBJECT_HE: e.target.SUBJECT_HE.value.trim(),
+          EVENT_DATE: e.target.EVENT_DATE.value.trim(),
         };
 
         google.script.run

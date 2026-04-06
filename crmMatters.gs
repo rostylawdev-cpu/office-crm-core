@@ -50,6 +50,10 @@ function crm_createMatter(input) {
     // Event/accident date — editable at creation; must NOT be derived from lead date.
     // Empty when unknown; safe for all matter types.
     EVENT_DATE: String(input.eventDate || "").trim(),
+    // Bilingual subject lines for legal template {{SUBJECT_RU}} / {{SUBJECT_HE}} placeholders.
+    // Fall back to summaryShort/title when not provided.
+    SUBJECT_RU: String(input.subjectRu || input.summaryShort || "").trim(),
+    SUBJECT_HE: String(input.subjectHe || "").trim(),
   };
 
   const rowIndex = appendRowByHeaders_(sh, c.HEADERS.MATTERS, rowObj);
