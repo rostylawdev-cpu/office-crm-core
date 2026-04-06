@@ -31,7 +31,7 @@ function crm_addLead(input) {
     ASSIGNED_TO: (input?.assignedTo ?? getActiveUserEmail_()).trim(),
     CLIENT_ID: (input?.clientId ?? "").trim(),
     NOTES: (input?.notes ?? "").trim(),
-    ID_TYPE: (input?.idType ?? "").trim(),
+    ID_TYPE: crm_normalizeIdType_(input?.idType ?? ""),
     ID_NUMBER: (input?.idNumber ?? "").trim(),
     ADDRESS: (input?.address ?? "").trim(),
   };

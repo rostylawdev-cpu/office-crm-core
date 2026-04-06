@@ -154,6 +154,18 @@ function crm_ensureDriveFolder_(parentFolderId, folderName) {
 function crm_getOrCreateClientFolder(clientId, clientFullName) {
   if (!clientId || !clientFullName) return null;
 
+  // Folder guard: if client record already has a FOLDER_URL, return it directly
+  // without hitting Drive. Prevents duplicate folders on re-runs / onboarding retries.
+  if (!crm_isProvisionalClientId_(clientId)) {
+    try {
+      const existingClient = crm_findClientById(clientId);
+      if (existingClient && existingClient.FOLDER_URL) return existingClient.FOLDER_URL;
+    } catch (e) { /* continue to create if lookup fails */ }
+  }
+
+  // Identity guard: if another client with same name+phone already has a folder, reuse it
+  // (handles the case where crm_addClient dedup fires but folder was already created separately)
+
   const c = cfg_();
   const rootFolderId = c.DRIVE && c.DRIVE.ROOT_FOLDER_ID ? String(c.DRIVE.ROOT_FOLDER_ID).trim() : "";
 

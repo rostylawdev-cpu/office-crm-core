@@ -8,6 +8,17 @@ function crm_getSpreadsheet_() {
   return SpreadsheetApp.openById(ssId);
 }
 
+/**
+ * Normalizes free-text ID type values to canonical CRM values: "TZ" or "PASSPORT".
+ * Returns "" for unrecognized input.
+ */
+function crm_normalizeIdType_(v) {
+  const s = String(v || "").toUpperCase().replace(/[\s_-]+/g, "");
+  if (s === "TZ" || s === "TEUDATZEHUT") return "TZ";
+  if (s === "PASSPORT" || s === "DARKON") return "PASSPORT";
+  return "";
+}
+
 function getProp_(key) {
   return PropertiesService.getScriptProperties().getProperty(key);
 }

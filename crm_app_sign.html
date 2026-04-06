@@ -241,7 +241,7 @@
       google.script.run
         .withSuccessHandler(function(res) {
           if (!res || !res.ok) {
-            setInfo('Error: ' + (res && res.error ? res.error : 'Invalid or expired signing link.'), 'err');
+            setInfo((res && res.error ? res.error : 'This signing link is no longer valid.\nThe document may already be signed or the link has expired.\nPlease contact the office to receive a new link.'), 'err');
             terminated = true;
             lockCanvas();
             return;
@@ -263,7 +263,12 @@
           setButtons(true);
         })
         .withFailureHandler(function(err) {
-          setInfo('Error: ' + (err && err.message ? err.message : String(err)), 'err');
+          var msg = err && err.message ? err.message : String(err);
+          // Humanize known token-state messages
+          if (!msg || /invalid|expired|not active/i.test(msg)) {
+            msg = 'This signing link is no longer valid.\nThe document may already be signed or the link has expired.\nPlease contact the office to receive a new link.';
+          }
+          setInfo(msg, 'err');
           terminated = true;
           lockCanvas();
         })

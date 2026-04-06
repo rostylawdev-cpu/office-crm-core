@@ -55,11 +55,8 @@
             <label for="idType">ID Type</label>
             <select id="idType" name="idType">
               <option value="">-- select type --</option>
-              <option value="TZ" <?= client.ID_TYPE === 'TZ' ? 'selected' : '' ?>>TZ</option>
-              <option value="Passport" <?= client.ID_TYPE === 'Passport' ? 'selected' : '' ?>>Passport</option>
-              <option value="Darkon" <?= client.ID_TYPE === 'Darkon' ? 'selected' : '' ?>>Darkon</option>
-              <option value="Teudat Zehut" <?= client.ID_TYPE === 'Teudat Zehut' ? 'selected' : '' ?>>Teudat Zehut</option>
-              <option value="Other" <?= client.ID_TYPE === 'Other' ? 'selected' : '' ?>>Other</option>
+              <option value="TZ" <?= crm_normalizeIdType_(client.ID_TYPE) === 'TZ' ? 'selected' : '' ?>>Teudat Zehut</option>
+              <option value="PASSPORT" <?= crm_normalizeIdType_(client.ID_TYPE) === 'PASSPORT' ? 'selected' : '' ?>>Passport / Darkon</option>
             </select>
           </div>
           <div class="form-group">

@@ -26,6 +26,15 @@ function crm_addClient(input) {
   if (!fullName) throw new Error("fullName is required");
   if (!phone) throw new Error("phone is required");
 
+  // Duplicate guard: return existing client if name + phone match
+  const duplicate = crm_findClientByIdentity_(fullName, phone);
+  if (duplicate) {
+    logInfo_("CLIENT_DEDUP", "crm_addClient: returning existing client (name+phone match)", {
+      clientId: duplicate.CLIENT_ID, fullName, phone
+    });
+    return { clientId: duplicate.CLIENT_ID, row: duplicate.__row, existing: true };
+  }
+
   const clientId = generateId_("CL");
   const ts = nowIso_();
 
@@ -38,7 +47,7 @@ function crm_addClient(input) {
     PHONE: phone,
     EMAIL: String(input?.email ?? "").trim(),
     ID_NUMBER: String(input?.idNumber ?? "").trim(),
-    ID_TYPE: String(input?.idType ?? "").trim(),
+    ID_TYPE: crm_normalizeIdType_(input?.idType ?? ""),
     LOCALE: String(input?.locale ?? "").trim(),
     STATUS: String(input?.status ?? "NEW").trim(),
     OWNER: String(input?.owner ?? getActiveUserEmail_()).trim(),
@@ -62,6 +71,20 @@ function crm_addClient(input) {
   logInfo_("CLIENT", "Created client", { clientId, row, folderUrl: folderUrl || "" });
 
   return { clientId, row };
+}
+
+/**
+ * Finds a client by full name + phone (both normalized).
+ * Used to prevent duplicate client creation when the same person signs up twice.
+ */
+function crm_findClientByIdentity_(fullName, phone) {
+  const rows = crm_getAllRowsFromSheet_(cfg_().SHEETS.CLIENTS, cfg_().HEADERS.CLIENTS);
+  const targetName = String(fullName || "").trim().toLowerCase();
+  const targetPhone = normPhone_(phone);
+  return rows.find(function(r) {
+    return String(r.FULL_NAME || "").trim().toLowerCase() === targetName &&
+           normPhone_(r.PHONE) === targetPhone;
+  }) || null;
 }
 
 function crm_findClientByPhone(phone) {
@@ -143,7 +166,7 @@ function crm_upsertClient(p) {
   const patch = {
     FULL_NAME: p.fullName !== undefined && p.fullName !== null ? String(p.fullName).trim() : "",
     EMAIL: p.email !== undefined && p.email !== null ? String(p.email).trim() : "",
-    ID_TYPE: p.idType !== undefined && p.idType !== null ? String(p.idType).trim() : "",
+    ID_TYPE: p.idType !== undefined && p.idType !== null ? crm_normalizeIdType_(p.idType) : "",
     ID_NUMBER: p.idNumber !== undefined && p.idNumber !== null ? String(p.idNumber).trim() : "",
     LOCALE: p.locale !== undefined && p.locale !== null ? String(p.locale).trim() : "",
     SOURCE: p.source !== undefined && p.source !== null ? String(p.source).trim() : "",

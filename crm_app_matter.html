@@ -199,8 +199,8 @@
         google.script.run
           .withSuccessHandler(function(res) {
             if (!res || !res.ok) {
-              if (res && res.code === 'already_generated') {
-                setSignFlowStatus('Documents already generated for this matter. Proceed to Create Sign Links.', 'muted');
+              if (res && (res.code === 'ALREADY_EXISTS' || res.code === 'already_generated')) {
+                setSignFlowStatus('Agreement + POA already exist for this matter. Proceed to Create Sign Links.', 'muted');
               } else {
                 setSignFlowStatus('Error: ' + (res && (res.message || res.error) ? (res.message || res.error) : 'unknown'), 'err');
               }
@@ -328,8 +328,8 @@
                 setSignLinksList([]);
                 return;
               }
-              if (firstLink.code === 'already_generated') {
-                setSignFlowStatus('Agreement and POA already exist. Signing link not needed — documents already signed.', 'muted');
+              if (firstLink.code === 'ALREADY_EXISTS' || firstLink.code === 'already_generated') {
+                setSignFlowStatus('Agreement + POA already exist. Signing link not needed — documents already signed.', 'muted');
                 document.getElementById('signLinksCard').style.display = 'none';
                 setSignLinksList([]);
                 return;

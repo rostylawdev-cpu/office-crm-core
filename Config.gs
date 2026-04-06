@@ -19,6 +19,14 @@ const CFG = {
     ROOT_FOLDER_ID: "1lscoZRCKKaTRgivFIPduZHWLcYXYvyYZ"
   },
 
+  // Google Docs template IDs for Agreement and POA.
+  // Each must be a shared Google Doc with {{PLACEHOLDER}} markers and [[SIGN_HERE]] signature marker.
+  // Set the real IDs here once the template docs are created in Drive.
+  TEMPLATES: {
+    AGREEMENT_DOC_ID: "1et_0ZbRT6wi4iAY1JReQybgLWqDvYC0C7aVKGOIUtPQ",
+    POA_DOC_ID:       "1VSQJeiPXh-DYola-NfUx_3KhCL1nM86q2Cl9cK3P-cE",
+  },
+
   HEADERS: {
     LEADS: [
       "LEAD_ID",
