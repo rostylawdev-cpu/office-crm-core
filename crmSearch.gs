@@ -48,6 +48,8 @@ function crm_searchLeads_(q, qNorm, limit) {
     return (
       matchField_(r.LEAD_ID, q, qNorm) ||
       matchField_(r.FULL_NAME, q, qNorm) ||
+      matchField_(r.FULL_NAME_RU, q, qNorm) ||
+      matchField_(r.FULL_NAME_HE, q, qNorm) ||
       matchField_(r.EMAIL, q, qNorm) ||
       matchField_(r.PHONE, q, qNorm, qPhone) ||
       matchField_(r.CASE_TYPE, q, qNorm) ||

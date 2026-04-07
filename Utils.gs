@@ -100,9 +100,21 @@ function buildHeaderIndex_(headers) {
 }
 
 function appendRowByHeaders_(sheet, headers, obj) {
-  const values = headers.map((h) => (obj[h] !== undefined ? obj[h] : ""));
+  // Use ACTUAL sheet column order, not the Config/headers array order.
+  // ensureHeaders_() appends new columns to the right and never reorders existing ones,
+  // so the sheet may have a different column order than the current Config array.
+  // Reading row 1 of the sheet guarantees correct positional alignment.
+  const lastCol = sheet.getLastColumn();
+  const sheetHeaders = lastCol > 0
+    ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String)
+    : headers.map(String); // empty/new sheet: fall back to Config order
+  const values = sheetHeaders.map(function(h) {
+    return obj.hasOwnProperty(h) ? obj[h] : "";
+  });
   const row = sheet.getLastRow() + 1;
-  sheet.getRange(row, 1, 1, values.length).setValues([values]);
+  if (values.length > 0) {
+    sheet.getRange(row, 1, 1, values.length).setValues([values]);
+  }
   return row;
 }
 

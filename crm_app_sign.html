@@ -218,6 +218,9 @@
             setTimeout(function() {
               window.location.href = WEB_APP_BASE + '?page=client&id=' + encodeURIComponent(realClientId);
             }, 1500);
+          } else if (res.conversionError) {
+            // Signing succeeded but post-sign client creation failed — do not reload
+            terminate('Your signature was received. However, your account setup encountered an error: ' + res.conversionError + '. Please contact the office — your documents are saved.', 'err');
           } else {
             terminate('Your signature has been submitted successfully. You can now close this page.', 'ok');
             setTimeout(function() { window.location.reload(); }, 1500);

@@ -12,5 +12,14 @@ function crm_openSearchDialog() {
 }
 
 function crm_runSearch(query) {
-  return crm_searchAll(query, { limit: 20 });
+  const res = crm_searchAll(query, { limit: 20 });
+  // Sanitize all row arrays — Date objects in sheet cells cause google.script.run to return null silently.
+  return {
+    ok: res.ok,
+    query: res.query,
+    leads:   crm_sanitizeRowsForClient_(res.leads   || []),
+    clients: crm_sanitizeRowsForClient_(res.clients || []),
+    matters: crm_sanitizeRowsForClient_(res.matters || []),
+    meta: res.meta,
+  };
 }

@@ -402,11 +402,16 @@ function crm_webListClientsForSelect() {
 function crm_webGetLeadInfo(leadId) {
   const lead = crm_getLeadById(leadId);
   if (!lead) return { error: "Lead not found", leadId };
+  // Only treat CLIENT_ID as a real client reference when it starts with "CL_".
+  // Non-CL_ values (e.g. "NEW", a status string, a provisional LEAD_ id) indicate
+  // a broken or unfinished state and must not redirect to edit_client/client pages.
+  const rawClientId = String(lead.CLIENT_ID || "").trim();
+  const isRealClientId = rawClientId.startsWith("CL_");
   return {
     ok: true,
     lead: lead,
-    hasLinkedClient: !!(lead.CLIENT_ID && String(lead.CLIENT_ID).trim()),
-    linkedClientId: (lead.CLIENT_ID && String(lead.CLIENT_ID).trim()) || null,
+    hasLinkedClient: isRealClientId,
+    linkedClientId: isRealClientId ? rawClientId : null,
   };
 }
 

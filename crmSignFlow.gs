@@ -1069,12 +1069,23 @@ function crm_submitSignature(token, dataUrlPng) {
 
       crm_markSignTokenUsed(token);
       var convertedClientId = null;
+      var conversionError = null;
       if (entry.matterId && crm_hasBothSignedOnboardingDocs_(entry.matterId)) {
         if (entry.leadId) {
           // Signing-first: create real client now, reattach matter + docs
-          const finalClientId = crm_finalizeOnboardingConversion_(entry.leadId, entry.matterId);
-          convertedClientId = finalClientId || null;
-          crm_triggerNextModuleReadiness_(entry.matterId, finalClientId || entry.clientId);
+          try {
+            const finalClientId = crm_finalizeOnboardingConversion_(entry.leadId, entry.matterId);
+            convertedClientId = (finalClientId && finalClientId.startsWith("CL_")) ? finalClientId : null;
+          } catch (convErr) {
+            conversionError = convErr.message || String(convErr);
+            crm_logActivity({
+              action: "ONBOARDING_CONVERSION_ERROR",
+              message: "Conversion failed after signing: " + conversionError,
+              matterId: entry.matterId,
+              meta: { token, leadId: entry.leadId, error: conversionError },
+            });
+          }
+          crm_triggerNextModuleReadiness_(entry.matterId, convertedClientId || entry.clientId);
         } else {
           // Legacy token without leadId: fall back to status-only conversion
           crm_safelyConvertLeadForClient(entry.clientId);
@@ -1087,9 +1098,9 @@ function crm_submitSignature(token, dataUrlPng) {
         message: "Onboarding package signed and conversion complete. clientId: " + (convertedClientId || entry.clientId),
         clientId: convertedClientId || entry.clientId,
         matterId: entry.matterId,
-        meta: { token, convertedClientId },
+        meta: { token, convertedClientId, conversionError: conversionError || null },
       });
-      return { ok: true, code: "success", matterId: entry.matterId || null, clientId: convertedClientId, signedPdfUrl: pkgLastPdfUrl, signatureUrl: pkgSigFile.getUrl() };
+      return { ok: true, code: "success", matterId: entry.matterId || null, clientId: convertedClientId, conversionError: conversionError || null, signedPdfUrl: pkgLastPdfUrl, signatureUrl: pkgSigFile.getUrl() };
     }
     // ─── END ONBOARDING PACKAGE FLOW ────────────────────────────────────────
 
@@ -1155,13 +1166,20 @@ function crm_submitSignature(token, dataUrlPng) {
     });
 
     // Convert lead only after BOTH AGREEMENT and POA are signed for this matter
+    var singleDocClientId = null;
     if (doc.MATTER_ID && crm_hasBothSignedOnboardingDocs_(doc.MATTER_ID)) {
       if (doc.CLIENT_ID && String(doc.CLIENT_ID).startsWith("LEAD_")) {
         // Provisional: finalize by creating real client from lead data
-        const finalClientId = crm_finalizeOnboardingConversion_(doc.CLIENT_ID, doc.MATTER_ID);
-        crm_triggerNextModuleReadiness_(doc.MATTER_ID, finalClientId || doc.CLIENT_ID);
+        try {
+          const finalClientId = crm_finalizeOnboardingConversion_(doc.CLIENT_ID, doc.MATTER_ID);
+          singleDocClientId = (finalClientId && finalClientId.startsWith("CL_")) ? finalClientId : null;
+        } catch (e) {
+          crm_logActivity({ action: "ONBOARDING_CONVERSION_ERROR", message: "Single-doc path conversion failed: " + e.message, matterId: doc.MATTER_ID, meta: { error: e.message } });
+        }
+        crm_triggerNextModuleReadiness_(doc.MATTER_ID, singleDocClientId || doc.CLIENT_ID);
       } else {
         crm_safelyConvertLeadForClient(doc.CLIENT_ID);
+        singleDocClientId = (!crm_isProvisionalClientId_(doc.CLIENT_ID) ? doc.CLIENT_ID : null);
         crm_triggerNextModuleReadiness_(doc.MATTER_ID, doc.CLIENT_ID);
       }
     }
@@ -1173,6 +1191,7 @@ function crm_submitSignature(token, dataUrlPng) {
       ok: true,
       code: "success",
       docId: entry.docId,
+      clientId: singleDocClientId,
       signedPdfUrl: signedPdfFile.getUrl(),
       signatureUrl: sigFile.getUrl(),
     };
@@ -1415,11 +1434,11 @@ function crm_finalizeOnboardingConversion_(leadId, matterId) {
   const lead = crm_getLeadById(leadId);
   if (!lead) return null;
 
-  // Idempotency: if lead already has a real CLIENT_ID, skip creation regardless of STATUS.
-  // STATUS may still be stale if a previous run was interrupted between writing CLIENT_ID
-  // and writing STATUS=CONVERTED — using CLIENT_ID alone avoids a duplicate client.
+  // Idempotency: if lead already has a REAL CLIENT_ID (starts with "CL_"), skip creation.
+  // Guard: reject any non-CL_ value (e.g. "NEW", a status string shifted by a column
+  // misalignment bug) — these must never be treated as a real client reference.
   const existingClientId = String(lead.CLIENT_ID || "").trim();
-  if (existingClientId && !crm_isProvisionalClientId_(existingClientId)) {
+  if (existingClientId && existingClientId.startsWith("CL_") && !crm_isProvisionalClientId_(existingClientId)) {
     // Repair: matter.CLIENT_ID may still be provisional if conversion was interrupted after
     // crm_addClient but before crm_setMatterField (or crm_reattachMatterDocsToClient_).
     const matterForRepair = crm_getMatterById(matterId);
