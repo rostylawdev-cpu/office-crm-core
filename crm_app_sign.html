@@ -210,10 +210,13 @@
           }
 
           // code === 'success'
-          if (res.clientId) {
+          // Only redirect when clientId is a real client (CL_…), not a provisional/status string
+          var realClientId = res.clientId &&
+            String(res.clientId).indexOf('CL_') === 0 ? res.clientId : null;
+          if (realClientId) {
             terminate('Your signature has been submitted successfully. Redirecting to your client profile...', 'ok');
             setTimeout(function() {
-              window.location.href = WEB_APP_BASE + '?page=client&id=' + encodeURIComponent(res.clientId);
+              window.location.href = WEB_APP_BASE + '?page=client&id=' + encodeURIComponent(realClientId);
             }, 1500);
           } else {
             terminate('Your signature has been submitted successfully. You can now close this page.', 'ok');

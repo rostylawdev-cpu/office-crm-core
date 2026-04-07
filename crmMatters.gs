@@ -8,8 +8,10 @@ function crm_createMatter(input) {
   if (!input || !input.clientId) {
     throw new Error("crm_createMatter: missing input.clientId");
   }
-  if (!input.title) {
-    throw new Error("crm_createMatter: missing input.title");
+  // Derive TITLE from SUBJECT_RU / SUBJECT_HE when not explicitly provided
+  const resolvedTitle = String(input.title || input.subjectRu || input.subjectHe || "").trim();
+  if (!resolvedTitle) {
+    throw new Error("crm_createMatter: title or subject is required");
   }
 
   const sh = ss.getSheetByName(c.SHEETS.MATTERS);
@@ -27,7 +29,7 @@ function crm_createMatter(input) {
     if (clientFolderId) {
       const mattersFolder = crm_ensureDriveFolder_(clientFolderId, "02_Matters");
       if (mattersFolder) {
-        const matterFolderUrl = crm_getOrCreateMatterFolder(matterId, input.title, mattersFolder.folderId);
+        const matterFolderUrl = crm_getOrCreateMatterFolder(matterId, resolvedTitle, mattersFolder.folderId);
         folderUrl = matterFolderUrl || "";
       }
     }
@@ -37,7 +39,7 @@ function crm_createMatter(input) {
     MATTER_ID: matterId,
     CLIENT_ID: input.clientId,
     CATEGORY: input.category || "",
-    TITLE: input.title || "",
+    TITLE: resolvedTitle,
     STAGE: input.stage || "NEW",
     OWNER: input.owner || actor,
     AUTHORITY: input.authority || "",

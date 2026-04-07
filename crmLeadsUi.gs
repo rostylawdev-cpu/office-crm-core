@@ -176,10 +176,15 @@ function crm_initLeadOnboardingContext_(leadId) {
   };
   const categoryLabel_ = categoryLabels_[caseType] || (caseType || "General");
   const dateStr_ = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd.MM.yyyy");
+  // Prefer lead's bilingual subject as the matter title; fall back to category + date
+  const onboardingTitle_ = String(lead.SUBJECT_RU || lead.SUBJECT_HE || "").trim()
+    || (categoryLabel_ + " – " + dateStr_);
   const matterRes = crm_createMatter({
     clientId: leadId,  // provisional — real client created by crm_finalizeOnboardingConversion_ after signing
     category: caseType || "GENERAL",
-    title: categoryLabel_ + " – " + dateStr_,
+    title: onboardingTitle_,
+    subjectRu: String(lead.SUBJECT_RU || "").trim(),
+    subjectHe: String(lead.SUBJECT_HE || "").trim(),
     authority: caseType === "WORK_ACCIDENT" ? "Bituach Leumi" : "",
     stage: "ONBOARDING",
     owner: String(lead.ASSIGNED_TO || getActiveUserEmail_() || "").trim(),

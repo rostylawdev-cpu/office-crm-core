@@ -383,15 +383,15 @@ function crm_buildTemplateData(client, matter) {
     ID_NUMBER: clientIdNumberFinal,
     PHONE: String(client.PHONE || "").trim(),
 
-    // No fake fallback — empty title is safer than "Subject matter" in a legal document.
+    // No fake fallback — empty string is safer than "Subject matter" in a legal document.
     MATTER_TITLE: String(matter.TITLE || "").trim(),
     MATTER_ID: String(matter.MATTER_ID || "").trim(),
     MATTER_AUTHORITY: authorityHe,
-    MATTER_SUBJECT: String(matter.SUMMARY_SHORT || matter.TITLE || "").trim(),
+    MATTER_SUBJECT: String(matter.SUBJECT_RU || matter.TITLE || matter.SUMMARY_SHORT || "").trim(),
 
-    // Prefer dedicated bilingual subject fields; fall back to SUMMARY_SHORT/TITLE
-    SUBJECT_RU: String(matter.SUBJECT_RU || matter.SUMMARY_SHORT || matter.TITLE || matter.CATEGORY || "").trim(),
-    SUBJECT_HE: String(matter.SUBJECT_HE || matter.SUMMARY_SHORT_HE || matter.TITLE || "").trim(),
+    // Subject: dedicated bilingual fields win; fall back to TITLE/SUMMARY_SHORT for old matters
+    SUBJECT_RU: String(matter.SUBJECT_RU || matter.TITLE || matter.SUMMARY_SHORT || "").trim(),
+    SUBJECT_HE: String(matter.SUBJECT_HE || matter.TITLE || "").trim(),
 
     AUTHORITY_RU: authorityRu,
     AUTHORITY_HE: authorityHe,
@@ -413,7 +413,7 @@ function crm_buildTemplateData(client, matter) {
     OFFICE_NAME_HE: office.OFFICE_NAME_HE,
     OFFICE_ADDRESS_HE: office.OFFICE_ADDRESS_HE,
 
-    // Prefer stored bilingual fields; fall back to FULL_NAME/ADDRESS when not set
+    // Bilingual name/address — prefer dedicated field, fall back to primary for backward compat
     CLIENT_FULL_NAME_RU: String(client.FULL_NAME_RU || client.FULL_NAME || "").trim(),
     CLIENT_FULL_NAME_HE: String(client.FULL_NAME_HE || client.FULL_NAME || "").trim(),
     ID_TYPE_RU: idTypeRu,
@@ -461,12 +461,16 @@ function crm_generateAgreementAndPoa(matterId) {
     if (!lead_) throw new Error("Lead not found for provisional onboarding matter: " + matter.CLIENT_ID);
     client = {
       CLIENT_ID: matter.CLIENT_ID,
-      FULL_NAME: String(lead_.FULL_NAME || "").trim(),
-      PHONE: String(lead_.PHONE || "").trim(),
-      EMAIL: String(lead_.EMAIL || "").trim(),
-      ID_TYPE: String(lead_.ID_TYPE || "").trim(),
-      ID_NUMBER: String(lead_.ID_NUMBER || "").trim(),
-      ADDRESS: String(lead_.ADDRESS || "").trim(),
+      FULL_NAME:    String(lead_.FULL_NAME    || "").trim(),
+      FULL_NAME_RU: String(lead_.FULL_NAME_RU || lead_.FULL_NAME || "").trim(),
+      FULL_NAME_HE: String(lead_.FULL_NAME_HE || lead_.FULL_NAME || "").trim(),
+      PHONE:        String(lead_.PHONE        || "").trim(),
+      EMAIL:        String(lead_.EMAIL        || "").trim(),
+      ID_TYPE:      String(lead_.ID_TYPE      || "").trim(),
+      ID_NUMBER:    String(lead_.ID_NUMBER    || "").trim(),
+      ADDRESS:      String(lead_.ADDRESS      || "").trim(),
+      ADDRESS_RU:   String(lead_.ADDRESS_RU   || lead_.ADDRESS || "").trim(),
+      ADDRESS_HE:   String(lead_.ADDRESS_HE   || lead_.ADDRESS || "").trim(),
       FOLDER_URL: "",
     };
   } else {
@@ -1288,8 +1292,8 @@ function crm_findActiveOnboardingPackageForMatter_(matterId) {
   return null;
 }
 
-// Create (or reuse) ONE signing link that covers both AGREEMENT and POA for an onboarding matter.
-// Called only by crm_createSignLinksForMatter when matter.STAGE === "ONBOARDING".
+// Create (or reuse) ONE signing link that covers both AGREEMENT and POA.
+// Called by crm_createSignLinksForMatter whenever both AGREEMENT + POA docs exist (any stage).
 function crm_createOnboardingSignPackage_(matterId) {
   const docs = crm_listDocumentsByMatterId(matterId, { limit: 100 });
   const agDoc  = docs.find(function(d) { return (d.TYPE || "").toUpperCase() === "AGREEMENT"; });
@@ -1446,11 +1450,15 @@ function crm_finalizeOnboardingConversion_(leadId, matterId) {
   // Create real client from lead data
   const clientRes = crm_addClient({
     fullName: String(lead.FULL_NAME || "").trim(),
+    fullNameRu: String(lead.FULL_NAME_RU || lead.FULL_NAME || "").trim(),
+    fullNameHe: String(lead.FULL_NAME_HE || lead.FULL_NAME || "").trim(),
     phone: String(lead.PHONE || "").trim(),
     email: String(lead.EMAIL || "").trim(),
     idType: String(lead.ID_TYPE || "").trim(),
     idNumber: String(lead.ID_NUMBER || "").trim(),
     address: String(lead.ADDRESS || "").trim(),
+    addressRu: String(lead.ADDRESS_RU || lead.ADDRESS || "").trim(),
+    addressHe: String(lead.ADDRESS_HE || lead.ADDRESS || "").trim(),
     source: "ONBOARDING_SIGNED",
     status: "NEW",
     owner: String(lead.ASSIGNED_TO || getActiveUserEmail_() || "").trim(),
